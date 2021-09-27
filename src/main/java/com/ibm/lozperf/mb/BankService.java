@@ -21,6 +21,8 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 
+import com.ibm.cpo.MegaBank.exceptions.MegaBankException;
+
 @ApplicationPath("MegaCard")
 @Path("Svc")
 public class BankService extends Application {
@@ -29,6 +31,9 @@ public class BankService extends Application {
 	private static Client client = ClientBuilder.newBuilder().build();
 	
 	private static DataSource ds = retrieveDataSource();
+	private static boolean insertIntoHistory = true;
+	private static boolean autoCommit = false;
+	private static boolean allowDupLogon = false;
 	
 	
 	public BankService() {
@@ -37,28 +42,24 @@ public class BankService extends Application {
 	
 	private UserCard getUserCard(Connection con, String cardNumber, String cvv, String expirationDate) throws SQLException {
 		final String queryStr = "SELECT accid, ccardid FROM creditcard WHERE ccnumber=? AND cvv=? AND expiration=?";
-		try (Connection con = getConnection()) {
-			PreparedStatement prep = con.prepareStatement(queryStr);
-			prep.setLong(1, Long.parseLong(cardNumber));
-			prep.setInt(2, Integer.parseInt(cvv));
-			prep.setInt(3, Integer.parseInt(expirationDate.replace("/", "")));
-			ResultSet rs = prep.executeQuery();
-			if(!rs.next())
-				return null;
-			return new UserCard(rs.getInt(1),rs.getInt(2));
-		}
+		PreparedStatement prep = con.prepareStatement(queryStr);
+		prep.setLong(1, Long.parseLong(cardNumber));
+		prep.setInt(2, Integer.parseInt(cvv));
+		prep.setInt(3, Integer.parseInt(expirationDate.replace("/", "")));
+		ResultSet rs = prep.executeQuery();
+		if(!rs.next())
+			return null;
+		return new UserCard(rs.getInt(1),rs.getInt(2));
 	}
 
 	private boolean checkMerchantToken(Connection con, int accid, String merchantToken) throws SQLException {
 		final String queryStr = "SELECT count(accid) FROM merchantacc WHERE accid=? AND token=?";
-		try (Connection con = getConnection()) {
-			PreparedStatement prep = con.prepareStatement(queryStr);
-			prep.setInt(1, accid);
-			prep.setString(2, merchantToken);
-			ResultSet rs = prep.executeQuery();
-			rs.next();
-			return rs.getInt(1)==1;
-		}
+		PreparedStatement prep = con.prepareStatement(queryStr);
+		prep.setInt(1, accid);
+		prep.setString(2, merchantToken);
+		ResultSet rs = prep.executeQuery();
+		rs.next();
+		return rs.getInt(1)==1;
 	}
 
 	
@@ -86,12 +87,107 @@ public class BankService extends Application {
 
 			if (checkFraud(userCard, transaction.merchantAcc, transaction.amount, TransactionType.ONLINE))
 				return false;
-			return mb.transfer(userCard.userId, transaction.merchantAcc, transaction.amount);
+			return transfer(con, userCard.userId, transaction.merchantAcc, transaction.amount);
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
 		}
 	}
+	
+	private static final String withdrawSQL =
+			"select lasttxid from final table (UPDATE account set balance = balance - ?, lasttxid = lasttxid + 1 WHERE" +
+			" accid = ? and balance >= ? ) "; //FIX RM 2020-04-30
+	private static final String depositSQL =
+			"select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )" ; //FIX RM 2020-04-30 with UR
+
+	public boolean transfer(Connection con, int accidFrom, int accidTo, BigDecimal amount)
+			throws MegaBankException {
+		
+		// TODO REFTX not being set for transfer
+		try {
+			
+			 PreparedStatement prep = con.prepareStatement(withdrawSQL);
+			 prep.setBigDecimal(1, amount);
+			 prep.setInt(2, accidFrom);
+			 prep.setBigDecimal(3, amount);
+			 
+			 
+			 int res  = prep.executeUpdate();
+//			 
+//			 if ( res != 1){
+//				 con.rollback();
+//				 con.close();
+//				 throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
+//			 }
+			 
+			 insertHistoryTransfer(con, "w",amount,accidTo,accidFrom);
+			 
+			 prep = con.prepareStatement(depositSQL);
+			 prep.setBigDecimal(1, amount);
+			 prep.setInt(2, accidTo);
+			 
+			 res  = prep.executeUpdate();
+			 
+			 if ( res != 1){
+				 con.rollback();
+				 con.close();
+					System.err.println("ERROR MegaBankJDBCService: transfer()"); //FIX RM 2020-04-29
+				 throw new MegaBankException("MegaBankJDBC.transfer.deposit: failed");
+			 }
+			 
+			 insertHistoryTransfer(con, "d",amount,accidFrom,accidTo);
+			 
+			  if( !autoCommit) con.commit();
+			 con.close();
+			 
+		} catch (SQLException e) {
+			System.err.println("ERROR MegaBankJDBCService: transfer()"); //FIX RM 2020-04-29
+			System.err.println(e.getMessage()); //FIX RM 2020-04-29
+			throw new MegaBankException(e.getMessage());
+		}
+		
+		return true;
+	}
+
+	private static final String insertHistoryTransferSQL =
+			"INSERT INTO HISTORY (TIME, TXID, TRANSTYPE, AMOUNT, REFTXID, ACCID) " +
+			" VALUES (CURRENT TIMESTAMP,  ? + (SELECT LASTTXID from ACCOUNT WHERE ACCID = ?), ?, ?," +
+			" ? + (SELECT LASTTXID from ACCOUNT WHERE ACCID = ?), ?) ";
+	
+	private boolean insertHistoryTransfer( Connection con, String TRANSTYPE, BigDecimal AMOUNT, int REFACCID, int ACCID)
+			throws MegaBankException {
+		
+			if ( insertIntoHistory)
+				try {
+					 PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL);
+					 
+					 prep.setLong(1, (long)ACCID * 10000000000l); // Use the ACCID to generate the "base" TXID
+					 prep.setInt(2, ACCID);
+					 prep.setString(3, TRANSTYPE);
+					 prep.setBigDecimal(4, AMOUNT);
+					 prep.setLong(5, (long)REFACCID*10000000000l);
+					 prep.setInt(6, REFACCID);
+					 prep.setInt(7, ACCID);
+					 
+					 
+					 int res  = prep.executeUpdate();
+					 
+					 if ( res != 1){
+						 con.rollback();
+						 con.close();
+						 System.err.println("ERROR MegaBankJDBCService: insertHistoryTransfer()"); //FIX RM 2020-04-29
+						 throw new MegaBankException("MegaBankJDBC.insertHistory: failed");
+					 }
+					 
+					 
+				} catch (SQLException e) {
+					System.err.println("ERROR MegaBankJDBCService: insertHistoryTransfer()"); //FIX RM 2020-04-29
+					System.err.println(e.getMessage()); //FIX RM 2020-04-29
+					throw new MegaBankException(e.getMessage());
+				}
+				
+			return true;
+		}
 	
 	
 	private static DataSource retrieveDataSource() {
@@ -117,8 +213,9 @@ public class BankService extends Application {
 					
 		} catch (NamingException e) {
 			System.err.println("MegaBankJDBC: Error, cannot find datasource " + dsName  );
-			e.printStackTrace();
+			throw new RuntimeException(e.getMessage());
 		}
+		return ds;
 	}
 	
 	protected Connection getConnection() throws SQLException {
