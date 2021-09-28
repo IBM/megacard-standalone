@@ -22,8 +22,6 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 
-import com.ibm.cpo.MegaBank.exceptions.MegaBankException;
-
 @ApplicationPath("MegaCard")
 @Path("Svc")
 public class BankService extends Application {
@@ -43,27 +41,30 @@ public class BankService extends Application {
 	private UserCard getUserCard(Connection con, String cardNumber, String cvv, String expirationDate)
 			throws SQLException {
 		final String queryStr = "SELECT accid, ccardid FROM creditcard WHERE ccnumber=? AND cvv=? AND expiration=?";
-		PreparedStatement prep = con.prepareStatement(queryStr);
-		prep.setLong(1, Long.parseLong(cardNumber));
-		prep.setInt(2, Integer.parseInt(cvv));
-		prep.setInt(3, Integer.parseInt(expirationDate.replace("/", "")));
-		ResultSet rs = prep.executeQuery();
-		if (!rs.next())
-			return null;
-		return new UserCard(rs.getInt(1), rs.getInt(2));
+
+		try(PreparedStatement prep = con.prepareStatement(queryStr)) {
+			prep.setLong(1, Long.parseLong(cardNumber));
+			prep.setInt(2, Integer.parseInt(cvv));
+			prep.setInt(3, Integer.parseInt(expirationDate.replace("/", "")));
+			ResultSet rs = prep.executeQuery();
+			if (!rs.next())
+				return null;
+			return new UserCard(rs.getInt(1), rs.getInt(2));
+		}
 	}
 
 	private boolean checkMerchantToken(Connection con, int accid, String merchantToken) throws SQLException {
 		final String queryStr = "SELECT count(accid) FROM merchantacc WHERE accid=? AND token=?";
-		PreparedStatement prep = con.prepareStatement(queryStr);
-		prep.setInt(1, accid);
-		prep.setString(2, merchantToken);
-		ResultSet rs = prep.executeQuery();
-		rs.next();
-		return rs.getInt(1) == 1;
+		try (PreparedStatement prep = con.prepareStatement(queryStr)){
+			prep.setInt(1, accid);
+			prep.setString(2, merchantToken);
+			ResultSet rs = prep.executeQuery();
+			rs.next();
+			return rs.getInt(1) == 1;
+		}
 	}
 
-	private boolean checkFraud(UserCard userCard, int MerchenAccId, BigDecimal amount, TransactionType useChip) {
+	private boolean checkFraud(UserCard userCard, int merchantTokenAccId, BigDecimal amount, TransactionType useChip) {
 		// final String queryStr = "SELECT ";
 
 		return false;
@@ -97,17 +98,17 @@ public class BankService extends Application {
 	private static final String withdrawSQL = "select lasttxid from final table (UPDATE account set balance = balance - ?, lasttxid = lasttxid + 1 WHERE"
 			+ " accid = ? and balance >= ? ) "; // FIX RM 2020-04-30
 	private static final String depositSQL = "select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )"; // FIX
-																																										// RM
-																																										// 2020-04-30
-																																										// with
-																																										// UR
+	// RM
+	// 2020-04-30
+	// with
+	// UR
 
 	public boolean transfer(Connection con, int accidFrom, int accidTo, BigDecimal amount) throws MegaBankException {
 
 		// TODO REFTX not being set for transfer
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
-			
+
 			try (PreparedStatement prep = con.prepareStatement(withdrawSQL)) {
 				prep.setBigDecimal(1, amount);
 				prep.setInt(2, accidFrom);
@@ -219,6 +220,6 @@ public class BankService extends Application {
 	}
 
 	private enum TransactionType {
-		ONLINE, CHIP, STRIP
+		ONLINE, CHIP, STRIP	
 	}
 }
