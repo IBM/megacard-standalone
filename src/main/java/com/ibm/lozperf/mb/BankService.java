@@ -1,6 +1,7 @@
 package com.ibm.lozperf.mb;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -42,7 +43,7 @@ public class BankService extends Application {
 			throws SQLException {
 		final String queryStr = "SELECT accid, ccardid FROM creditcard WHERE ccnumber=? AND cvv=? AND expiration=?";
 
-		try(PreparedStatement prep = con.prepareStatement(queryStr)) {
+		try (PreparedStatement prep = con.prepareStatement(queryStr)) {
 			prep.setLong(1, Long.parseLong(cardNumber));
 			prep.setInt(2, Integer.parseInt(cvv));
 			prep.setInt(3, Integer.parseInt(expirationDate.replace("/", "")));
@@ -55,7 +56,7 @@ public class BankService extends Application {
 
 	private boolean checkMerchantToken(Connection con, int accid, String merchantToken) throws SQLException {
 		final String queryStr = "SELECT count(accid) FROM merchantacc WHERE accid=? AND token=?";
-		try (PreparedStatement prep = con.prepareStatement(queryStr)){
+		try (PreparedStatement prep = con.prepareStatement(queryStr)) {
 			prep.setInt(1, accid);
 			prep.setString(2, merchantToken);
 			ResultSet rs = prep.executeQuery();
@@ -64,7 +65,8 @@ public class BankService extends Application {
 		}
 	}
 
-	private boolean checkFraud(UserCard userCard, int merchantTokenAccId, BigDecimal amount, TransactionType useChip) {
+	private boolean checkFraud(UserCard userCard, int merchantTokenAccId, BigDecimal amount,
+			CreditcardTransactionType useChip) {
 		// final String queryStr = "SELECT ";
 
 		return false;
@@ -86,9 +88,11 @@ public class BankService extends Application {
 			if (userCard == null)
 				return false;
 
-			if (checkFraud(userCard, transaction.merchantAcc, transaction.amount, TransactionType.ONLINE))
+			if (checkFraud(userCard, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE))
 				return false;
-			return transfer(con, userCard.userId, transaction.merchantAcc, transaction.amount);
+			transfer(con, userCard, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			con.commit();
+			return true;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
@@ -103,65 +107,79 @@ public class BankService extends Application {
 	// with
 	// UR
 
-	public boolean transfer(Connection con, int accidFrom, int accidTo, BigDecimal amount) throws MegaBankException {
+	public boolean transfer(Connection con, UserCard card, int accidTo, BigDecimal amount, CreditcardTransactionType type) throws MegaBankException, SQLException {
 
+		System.out.println(card.userId +" -> " + accidTo);
 		// TODO REFTX not being set for transfer
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
-
+			
+			long lastFromTX;
 			try (PreparedStatement prep = con.prepareStatement(withdrawSQL)) {
 				prep.setBigDecimal(1, amount);
-				prep.setInt(2, accidFrom);
+				prep.setInt(2, card.userId);
 				prep.setBigDecimal(3, amount);
 
-				int res = prep.executeUpdate();
-				if (res != 1) {
+				ResultSet rs = prep.executeQuery();
+				if (!rs.next()) {
 					con.rollback(startTransferSP);
 					throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
 				}
+				lastFromTX = rs.getLong(1);
 			}
-
+			long lastToTX;
 			try (PreparedStatement prep = con.prepareStatement(depositSQL)) {
 				prep.setBigDecimal(1, amount);
 				prep.setInt(2, accidTo);
 
-				int res = prep.executeUpdate();
+				ResultSet rs = prep.executeQuery();
 
-				if (res != 1) {
+				if (!rs.next()) {
 					con.rollback(startTransferSP);
 					System.err.println("ERROR MegaBankJDBCService: transfer()"); // FIX RM 2020-04-29
 					throw new MegaBankException("MegaBankJDBC.transfer.deposit: failed");
 				}
+				lastToTX = rs.getLong(1);
 			}
-
-			insertHistoryTransfer(con, "w", amount, accidTo, accidFrom);
-			insertHistoryTransfer(con, "d", amount, accidFrom, accidTo);
-
+			
+			insertCardHistory(con, amount, accidTo, card, type, lastFromTX, lastToTX, null);
 		} catch (SQLException e) {
 			System.err.println("ERROR MegaBankJDBCService: transfer()"); // FIX RM 2020-04-29
 			System.err.println(e.getMessage()); // FIX RM 2020-04-29
-			throw new MegaBankException(e.getMessage());
+			throw e;
+			//throw new MegaBankException(e.getMessage());
 		}
 
 		return true;
 	}
+	
+	private void insertCardHistory(Connection con, BigDecimal amount, int accidTo, UserCard card, CreditcardTransactionType type, long lastFromTX, long lastToTX, Integer errId) throws MegaBankException, SQLException {
+		insertHistoryTransfer(con, "w", amount, accidTo, card.userId, lastToTX, lastFromTX);
+		insertHistoryTransfer(con, "d", amount, card.userId, accidTo, lastFromTX, lastToTX);
+		
+		final String insertCardHistorySQL = "INSERT INTO CARDHISTORY (TXID, CCARDID, METHOD, ERRID) VALUES (?,?,?,?)";
+		try (PreparedStatement prep = con.prepareStatement(insertCardHistorySQL)) {
+			prep.setLong(1,lastFromTX);
+			prep.setLong(2, card.card);
+			prep.setInt(3, type.ordinal());
+			prep.setNull(4,java.sql.Types.INTEGER);
+		}
+		
+	}
 
-	private static final String insertHistoryTransferSQL = "INSERT INTO HISTORY (TIME, TXID, TRANSTYPE, AMOUNT, REFTXID, ACCID) "
-			+ " VALUES (CURRENT TIMESTAMP,  ? + (SELECT LASTTXID from ACCOUNT WHERE ACCID = ?), ?, ?,"
-			+ " ? + (SELECT LASTTXID from ACCOUNT WHERE ACCID = ?), ?) ";
-
-	private boolean insertHistoryTransfer(Connection con, String TRANSTYPE, BigDecimal AMOUNT, int REFACCID, int ACCID)
+	private boolean insertHistoryTransfer(Connection con, String TRANSTYPE, BigDecimal AMOUNT, int REFACCID, int ACCID, long lastREFTX, long lastTX)
 			throws MegaBankException {
 
-		if (insertIntoHistory)
-			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)){
+		final String insertHistoryTransferSQL = "INSERT INTO HISTORY (TIME, TXID, TRANSTYPE, AMOUNT, REFTXID, ACCID) "
+				+ " VALUES (CURRENT TIMESTAMP,  ?, ?, ?, ?, ?) ";
 
-				prep.setLong(1, (long) ACCID * 10000000000l); // Use the ACCID to generate the "base" TXID
-				prep.setInt(2, ACCID);
+		if (insertIntoHistory)
+			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)) {
+
+				prep.setLong(1, (long) ACCID * 10000000000l + lastTX); // Use the ACCID to generate the "base" TXID
 				prep.setString(3, TRANSTYPE);
 				prep.setBigDecimal(4, AMOUNT);
-				prep.setLong(5, (long) REFACCID * 10000000000l);
-				prep.setInt(6, REFACCID);
+				prep.setLong(5, (long) REFACCID * 10000000000l + lastREFTX);
 				prep.setInt(7, ACCID);
 
 				int res = prep.executeUpdate();
@@ -217,9 +235,5 @@ public class BankService extends Application {
 		if (!autoCommit)
 			con.setAutoCommit(false);
 		return con;
-	}
-
-	private enum TransactionType {
-		ONLINE, CHIP, STRIP	
 	}
 }
