@@ -1,7 +1,6 @@
 package com.ibm.lozperf.mb;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,7 +38,7 @@ public class BankService extends Application {
 
 	}
 
-	private UserCard getUserCard(Connection con, String cardNumber, String cvv, String expirationDate)
+	private CardAccount getUserCard(Connection con, String cardNumber, String cvv, String expirationDate)
 			throws SQLException {
 		final String queryStr = "SELECT accid, ccardid FROM creditcard WHERE ccnumber=? AND cvv=? AND expiration=?";
 
@@ -50,7 +49,7 @@ public class BankService extends Application {
 			ResultSet rs = prep.executeQuery();
 			if (!rs.next())
 				return null;
-			return new UserCard(rs.getInt(1), rs.getInt(2));
+			return new CardAccount(rs.getInt(2), rs.getInt(1));
 		}
 	}
 
@@ -65,9 +64,13 @@ public class BankService extends Application {
 		}
 	}
 
-	private boolean checkFraud(UserCard userCard, int merchantTokenAccId, BigDecimal amount,
+	private boolean checkFraud(CardAccount cardAccount, int merchantTokenAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) {
-		// final String queryStr = "SELECT ";
+		final String queryStr = "SELECT c.state, c.zipcode, c.city, m.merchant_name, m.mcc, hw.amount, hw.time \n"
+				+ "FROM DB2INST1.HISTORY hw JOIN HISTORY hd ON hd.reftxid=hw.txid JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid \n"
+				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid\n"
+				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' \n"
+				+ "ORDER BY hd.time DESC LIMIT 7";
 
 		return false;
 	}
@@ -84,13 +87,13 @@ public class BankService extends Application {
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken))
 				return false;
 
-			UserCard userCard = getUserCard(con, transaction.cardNumber, transaction.cvv, transaction.expirationDate);
-			if (userCard == null)
+			CardAccount cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv, transaction.expirationDate);
+			if (cardAccount == null)
 				return false;
 
-			if (checkFraud(userCard, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE))
+			if (checkFraud(cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE))
 				return false;
-			transfer(con, userCard, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
 			con.commit();
 			return true;
 		} catch (SQLException e) {
@@ -107,9 +110,9 @@ public class BankService extends Application {
 	// with
 	// UR
 
-	public boolean transfer(Connection con, UserCard card, int accidTo, BigDecimal amount, CreditcardTransactionType type) throws MegaBankException, SQLException {
+	public boolean transfer(Connection con, CardAccount card, int accidTo, BigDecimal amount, CreditcardTransactionType type) throws MegaBankException, SQLException {
 
-		System.out.println(card.userId +" -> " + accidTo);
+		System.out.println(card.accountId +" -> " + accidTo);
 		// TODO REFTX not being set for transfer
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
@@ -117,7 +120,7 @@ public class BankService extends Application {
 			long lastFromTX;
 			try (PreparedStatement prep = con.prepareStatement(withdrawSQL)) {
 				prep.setBigDecimal(1, amount);
-				prep.setInt(2, card.userId);
+				prep.setInt(2, card.accountId);
 				prep.setBigDecimal(3, amount);
 
 				ResultSet rs = prep.executeQuery();
@@ -153,16 +156,17 @@ public class BankService extends Application {
 		return true;
 	}
 	
-	private void insertCardHistory(Connection con, BigDecimal amount, int accidTo, UserCard card, CreditcardTransactionType type, long lastFromTX, long lastToTX, Integer errId) throws MegaBankException, SQLException {
-		insertHistoryTransfer(con, "w", amount, accidTo, card.userId, lastToTX, lastFromTX);
-		insertHistoryTransfer(con, "d", amount, card.userId, accidTo, lastFromTX, lastToTX);
+	private void insertCardHistory(Connection con, BigDecimal amount, int accidTo, CardAccount card, CreditcardTransactionType type, long lastFromTX, long lastToTX, Integer errId) throws MegaBankException, SQLException {
+		insertHistoryTransfer(con, "w", amount, accidTo, card.accountId, lastToTX, lastFromTX);
+		insertHistoryTransfer(con, "d", amount, card.accountId, accidTo, lastFromTX, lastToTX);
 		
 		final String insertCardHistorySQL = "INSERT INTO CARDHISTORY (TXID, CCARDID, METHOD, ERRID) VALUES (?,?,?,?)";
 		try (PreparedStatement prep = con.prepareStatement(insertCardHistorySQL)) {
-			prep.setLong(1,lastFromTX);
+			prep.setLong(1,card.accountId * 10000000000l + lastFromTX);
 			prep.setLong(2, card.card);
 			prep.setInt(3, type.ordinal());
 			prep.setNull(4,java.sql.Types.INTEGER);
+			prep.execute();
 		}
 		
 	}
@@ -177,10 +181,10 @@ public class BankService extends Application {
 			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)) {
 
 				prep.setLong(1, (long) ACCID * 10000000000l + lastTX); // Use the ACCID to generate the "base" TXID
-				prep.setString(3, TRANSTYPE);
-				prep.setBigDecimal(4, AMOUNT);
-				prep.setLong(5, (long) REFACCID * 10000000000l + lastREFTX);
-				prep.setInt(7, ACCID);
+				prep.setString(2, TRANSTYPE);
+				prep.setBigDecimal(3, AMOUNT);
+				prep.setLong(4, (long) REFACCID * 10000000000l + lastREFTX);
+				prep.setInt(5, ACCID);
 
 				int res = prep.executeUpdate();
 
