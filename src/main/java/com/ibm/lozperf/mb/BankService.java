@@ -44,7 +44,7 @@ public class BankService extends Application {
 	private static boolean allowDupLogon = false;
 
 	private WebTarget modelServer;
-	
+
 	public BankService() {
 		Client httpClient = ClientBuilder.newClient();
 		modelServer = httpClient.target(TF_URL);
@@ -130,11 +130,20 @@ public class BankService extends Application {
 
 		Entity<Object> entity = Entity.json(tfInputs);
 		Response resp = modelServer.request().post(entity);
-		System.out.println(resp.getStatus());
-		System.out.println(resp.readEntity(String.class));
-		//boolean[] fraud = resp.readEntity(boolean[].class);
-		//System.out.println(fraud[fraud.length-1]);
-		return false;
+		int httpStatus = resp.getStatus();
+		if(httpStatus!=200) {
+			System.out.println("Got " + httpStatus + " from TF Server");
+		}
+		//System.out.println(resp.readEntity(String.class));
+		float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
+		float fraud = outputs[outputs.length - 1][0][0];
+		System.out.println(fraud);
+		boolean isFraud = fraud > 0.5;
+		if(isFraud) {
+			System.err.println("FRAUD FRAUD FRAUD: " + fraud);
+		}
+		
+		return isFraud;
 	}
 
 	@POST
