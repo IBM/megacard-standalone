@@ -16,6 +16,7 @@ import javax.naming.NamingException;
 import javax.sql.DataSource;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -105,8 +106,10 @@ public class BankService extends Application {
 				i++;
 			}
 		}
-		if (i != LafalceInputs.TIMESTEPS - 1)
+		if (i != LafalceInputs.TIMESTEPS - 1) {
+			System.out.println("Not Enough history to check Fraud");
 			return false;
+		}
 
 		modelInputs.UseChip[LafalceInputs.TIMESTEPS - 1] = useChip.stringValue;
 		modelInputs.Errors[LafalceInputs.TIMESTEPS - 1] = "None";
@@ -132,15 +135,16 @@ public class BankService extends Application {
 		Response resp = modelServer.request().post(entity);
 		int httpStatus = resp.getStatus();
 		if(httpStatus!=200) {
-			System.out.println("Got " + httpStatus + " from TF Server");
+			System.err.println("Got " + httpStatus + " from TF Server");
+			return false;
 		}
 		//System.out.println(resp.readEntity(String.class));
 		float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
 		float fraud = outputs[outputs.length - 1][0][0];
-		System.out.println(fraud);
+		//System.out.println("Fraud Propability: " + fraud);
 		boolean isFraud = fraud > 0.5;
 		if(isFraud) {
-			System.err.println("FRAUD FRAUD FRAUD: " + fraud);
+			System.out.println("FRAUD FRAUD FRAUD: " + fraud);
 		}
 		
 		return isFraud;
@@ -151,9 +155,9 @@ public class BankService extends Application {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces({ MediaType.APPLICATION_JSON })
 	public boolean doCardTransaction(CreditCardTransaction transaction) throws MegaBankException {
-		System.out.println(transaction.transactionUuid);
-		System.out.println(transaction.cardNumber);
-		System.out.println(transaction.amount);
+		//System.out.println(transaction.transactionUuid);
+		//System.out.println(transaction.cardNumber);
+		//System.out.println(transaction.amount);
 		try (Connection con = getConnection()) {
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken))
 				return false;
@@ -176,18 +180,12 @@ public class BankService extends Application {
 	}
 
 	private static final String withdrawSQL = "select lasttxid from final table (UPDATE account set balance = balance - ?, lasttxid = lasttxid + 1 WHERE"
-			+ " accid = ? and balance >= ? ) "; // FIX RM 2020-04-30
-	private static final String depositSQL = "select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )"; // FIX
-	// RM
-	// 2020-04-30
-	// with
-	// UR
+			+ " accid = ? and balance >= ? ) ";
+	private static final String depositSQL = "select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )";
 
 	public boolean transfer(Connection con, CardAccount card, int accidTo, BigDecimal amount,
 			CreditcardTransactionType type) throws MegaBankException, SQLException {
 
-		System.out.println(card.accountId + " -> " + accidTo);
-		// TODO REFTX not being set for transfer
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
 
@@ -315,5 +313,11 @@ public class BankService extends Application {
 		if (!autoCommit)
 			con.setAutoCommit(false);
 		return con;
+	}
+	
+	@GET
+	@Path("test")
+	public String test() {
+		return "OK";
 	}
 }
