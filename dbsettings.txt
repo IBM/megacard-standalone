@@ -1,0 +1,1 @@
+UPDATE DB CFG FOR <DatabaseName> USING logarchmeth1 OFF logarchmeth2 OFF logprimary 50 logsecond 8 logfilsiz 4096;

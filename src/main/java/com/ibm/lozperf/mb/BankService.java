@@ -1,7 +1,5 @@
 package com.ibm.lozperf.mb;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,6 +8,10 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.util.Map;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.annotation.Resource;
+import javax.ejb.Singleton;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -22,33 +24,47 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.ClientRequestContext;
-import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.xml.stream.util.StreamReaderDelegate;
 
 import com.ibm.lozperf.mb.LafalceInputs.Inputs;
 
 @ApplicationPath("MegaCard")
 @Path("Svc")
+//@Stateless
+@Singleton
 public class BankService extends Application {
 
-	private final String TF_URL = System.getenv("TF_URL");
+	private final static String TF_URL = System.getenv("TF_URL");
 
-	private static DataSource ds = retrieveDataSource();
+	// private static DataSource ds = retrieveDataSource();
+	@Resource(name = "jdbc/MegaBankDataSource")
+	private DataSource ds;
 	private static boolean insertIntoHistory = true;
 	private static boolean autoCommit = false;
 	private static boolean allowDupLogon = false;
 
+	private Client httpClient;
 	private WebTarget modelServer;
 
-	public BankService() {
-		Client httpClient = ClientBuilder.newClient();
+	@PostConstruct
+	public void init() {
+        ClientBuilder cb = ClientBuilder.newBuilder();
+        cb.property("com.ibm.ws.jaxrs.client.keepalive.connection", "keep-alive");
+        cb.property("com.ibm.ws.jaxrs.client.connection.timeout", "1000");
+        httpClient = cb.build();
+		//httpClient = ClientBuilder.newClient();
 		modelServer = httpClient.target(TF_URL);
+		System.out.println("Ready");
+	}
+
+	@PreDestroy
+	public void destroy() {
+		System.out.println("destroy");
+		httpClient.close();
 	}
 
 	private CardAccount getUserCard(Connection con, String cardNumber, String cvv, String expirationDate)
@@ -79,8 +95,10 @@ public class BankService extends Application {
 
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
-		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), c.state, c.zipcode, c.city, m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM CARDHISTORY ch LEFT JOIN ERROR err ON ch.errid=err.errid JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
+		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
+				+ "FROM CARDHISTORY ch LEFT JOIN ERROR err ON ch.errid=err.errid "
+				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
+				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
 				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid "
 				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' AND ch.CCARDID=? "
 				+ "ORDER BY hd.time ASC LIMIT " + (LafalceInputs.TIMESTEPS - 1);
@@ -114,9 +132,9 @@ public class BankService extends Application {
 		modelInputs.UseChip[LafalceInputs.TIMESTEPS - 1] = useChip.stringValue;
 		modelInputs.Errors[LafalceInputs.TIMESTEPS - 1] = "None";
 		modelInputs.Amount[LafalceInputs.TIMESTEPS - 1] = amount;
-		modelInputs.YearMonthDayTime[LafalceInputs.TIMESTEPS - 1] = System.currentTimeMillis() * 1000000L;
+		modelInputs.YearMonthDayTime[LafalceInputs.TIMESTEPS - 1] = System.currentTimeMillis();
 
-		final String merchQueryStr = "SELECT c.state c, c.zipcode, c.city, m.merchant_name, m.mcc "
+		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
 				+ "WHERE ma.accid=?";
 		try (PreparedStatement prep = con.prepareStatement(merchQueryStr)) {
@@ -131,23 +149,25 @@ public class BankService extends Application {
 			modelInputs.MCC[LafalceInputs.TIMESTEPS - 1] = Integer.toString(rs.getInt(5));
 		}
 
-		Entity<Object> entity = Entity.json(tfInputs);
-		Response resp = modelServer.request().post(entity);
-		int httpStatus = resp.getStatus();
-		if(httpStatus!=200) {
-			System.err.println("Got " + httpStatus + " from TF Server");
-			return false;
+		Entity<LafalceInputs> entity = Entity.json(tfInputs);
+		try (Response resp = modelServer.request().post(entity)) {
+			int httpStatus = resp.getStatus();
+			if (httpStatus != 200) {
+				System.err.println("Got " + httpStatus + " from TF Server\n" + resp.readEntity(String.class));
+				System.err.println(tfInputs.toString());
+				return false;
+			}
+			// System.out.println(resp.readEntity(String.class));
+			float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
+			float fraud = outputs[outputs.length - 1][0][0];
+			// System.out.println("Fraud Propability: " + fraud);
+			boolean isFraud = fraud > 0.5;
+			if (isFraud) {
+				// System.out.println("FRAUD FRAUD FRAUD: " + fraud);
+			}
+
+			return isFraud;
 		}
-		//System.out.println(resp.readEntity(String.class));
-		float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
-		float fraud = outputs[outputs.length - 1][0][0];
-		//System.out.println("Fraud Propability: " + fraud);
-		boolean isFraud = fraud > 0.5;
-		if(isFraud) {
-			System.out.println("FRAUD FRAUD FRAUD: " + fraud);
-		}
-		
-		return isFraud;
 	}
 
 	@POST
@@ -155,21 +175,27 @@ public class BankService extends Application {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces({ MediaType.APPLICATION_JSON })
 	public boolean doCardTransaction(CreditCardTransaction transaction) throws MegaBankException {
-		//System.out.println(transaction.transactionUuid);
-		//System.out.println(transaction.cardNumber);
-		//System.out.println(transaction.amount);
+		// System.out.println(transaction.transactionUuid);
+		// System.out.println(transaction.cardNumber);
+		// System.out.println(transaction.amount);
 		try (Connection con = getConnection()) {
-			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken))
+			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
+				// System.out.println("Merchant not found");
 				return false;
+			}
 
 			CardAccount cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv,
 					transaction.expirationDate);
-			if (cardAccount == null)
+			if (cardAccount == null) {
+				// System.out.println("Card not found");
 				return false;
+			}
 
 			if (checkFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
-					CreditcardTransactionType.ONLINE))
+					CreditcardTransactionType.ONLINE)) {
+				con.rollback();
 				return false;
+			}
 			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
 			con.commit();
 			return true;
@@ -276,6 +302,13 @@ public class BankService extends Application {
 		return true;
 	}
 
+	protected Connection getConnection() throws SQLException {
+		Connection con = ds.getConnection();
+		if (!autoCommit)
+			con.setAutoCommit(false);
+		return con;
+	}
+
 	private static DataSource retrieveDataSource() {
 		Map<String, String> envList = System.getenv();
 
@@ -296,6 +329,7 @@ public class BankService extends Application {
 		System.out.println("MegaBankJDBC: autoCommit = " + Boolean.toString(autoCommit));
 		System.out.println("MegaBankJDBC: allow Duplicate Logons = " + Boolean.toString(allowDupLogon));
 
+		DataSource ds;
 		try {
 			Context ctx = new InitialContext();
 			ds = (DataSource) ctx.lookup(dsName);
@@ -308,13 +342,6 @@ public class BankService extends Application {
 		return ds;
 	}
 
-	protected Connection getConnection() throws SQLException {
-		Connection con = ds.getConnection();
-		if (!autoCommit)
-			con.setAutoCommit(false);
-		return con;
-	}
-	
 	@GET
 	@Path("test")
 	public String test() {
