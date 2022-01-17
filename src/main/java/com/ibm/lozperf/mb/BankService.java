@@ -11,6 +11,8 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.Singleton;
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -36,9 +38,11 @@ import com.ibm.lozperf.mb.LafalceInputs.Inputs;
 @Path("Svc")
 //@Stateless
 @Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class BankService extends Application {
 
 	private final static String TF_URL = System.getenv("TF_URL");
+	private final static boolean CHECK_FRAUD = Boolean.parseBoolean(System.getenv("CHECK_FRAUD"));
 
 	// private static DataSource ds = retrieveDataSource();
 	@Resource(name = "jdbc/MegaBankDataSource")
@@ -96,12 +100,13 @@ public class BankService extends Application {
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM CARDHISTORY ch LEFT JOIN ERROR err ON ch.errid=err.errid "
+				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "+(LafalceInputs.TIMESTEPS - 1)+") ch "
+				+ "LEFT JOIN ERROR err ON ch.errid=err.errid "
 				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
 				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
 				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid "
-				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' AND ch.CCARDID=? "
-				+ "ORDER BY hd.time ASC LIMIT " + (LafalceInputs.TIMESTEPS - 1);
+				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' "
+				+ "ORDER BY hd.time ASC";
 
 		LafalceInputs tfInputs = new LafalceInputs();
 		Inputs modelInputs = tfInputs.inputs;
@@ -160,7 +165,7 @@ public class BankService extends Application {
 			// System.out.println(resp.readEntity(String.class));
 			float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
 			float fraud = outputs[outputs.length - 1][0][0];
-			// System.out.println("Fraud Propability: " + fraud);
+			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
 			boolean isFraud = fraud > 0.5;
 			if (isFraud) {
 				// System.out.println("FRAUD FRAUD FRAUD: " + fraud);
@@ -191,7 +196,7 @@ public class BankService extends Application {
 				return false;
 			}
 
-			if (checkFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
+			if (CHECK_FRAUD && checkFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
 					CreditcardTransactionType.ONLINE)) {
 				con.rollback();
 				return false;
