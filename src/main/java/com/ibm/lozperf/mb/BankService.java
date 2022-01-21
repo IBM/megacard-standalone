@@ -24,15 +24,8 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import com.ibm.lozperf.mb.LafalceInputs.Inputs;
 
 @ApplicationPath("MegaCard")
 @Path("Svc")
@@ -41,7 +34,6 @@ import com.ibm.lozperf.mb.LafalceInputs.Inputs;
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class BankService extends Application {
 
-	private final static String TF_URL = System.getenv("TF_URL");
 	private final static boolean CHECK_FRAUD = Boolean.parseBoolean(System.getenv("CHECK_FRAUD"));
 
 	// private static DataSource ds = retrieveDataSource();
@@ -51,24 +43,22 @@ public class BankService extends Application {
 	private static boolean autoCommit = false;
 	private static boolean allowDupLogon = false;
 
-	private Client httpClient;
-	private WebTarget modelServer;
+	private ModelAdapter model;
 
 	@PostConstruct
 	public void init() {
-        ClientBuilder cb = ClientBuilder.newBuilder();
-        cb.property("com.ibm.ws.jaxrs.client.keepalive.connection", "keep-alive");
-        cb.property("com.ibm.ws.jaxrs.client.connection.timeout", "1000");
-        httpClient = cb.build();
-		//httpClient = ClientBuilder.newClient();
-		modelServer = httpClient.target(TF_URL);
+		model = new TFServingAdapter();
 		System.out.println("Ready");
 	}
 
 	@PreDestroy
 	public void destroy() {
 		System.out.println("destroy");
-		httpClient.close();
+		try {
+			model.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	private CardAccount getUserCard(Connection con, String cardNumber, String cvv, String expirationDate)
@@ -100,7 +90,7 @@ public class BankService extends Application {
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "+(LafalceInputs.TIMESTEPS - 1)+") ch "
+				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "+(model.numberTimesteps()- 1)+") ch "
 				+ "LEFT JOIN ERROR err ON ch.errid=err.errid "
 				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
 				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -108,8 +98,8 @@ public class BankService extends Application {
 				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' "
 				+ "ORDER BY hd.time ASC";
 
-		LafalceInputs tfInputs = new LafalceInputs();
-		Inputs modelInputs = tfInputs.inputs;
+		
+		Inputs modelInputs = new Inputs(model.numberTimesteps());
 		CreditcardTransactionType[] trantypes = CreditcardTransactionType.values();
 
 		int i = 0;
@@ -129,15 +119,15 @@ public class BankService extends Application {
 				i++;
 			}
 		}
-		if (i != LafalceInputs.TIMESTEPS - 1) {
+		if (i != model.numberTimesteps() - 1) {
 			System.out.println("Not Enough history to check Fraud");
 			return false;
 		}
 
-		modelInputs.UseChip[LafalceInputs.TIMESTEPS - 1] = useChip.stringValue;
-		modelInputs.Errors[LafalceInputs.TIMESTEPS - 1] = "None";
-		modelInputs.Amount[LafalceInputs.TIMESTEPS - 1] = amount;
-		modelInputs.YearMonthDayTime[LafalceInputs.TIMESTEPS - 1] = System.currentTimeMillis();
+		modelInputs.UseChip[i] = useChip.stringValue;
+		modelInputs.Errors[i] = "None";
+		modelInputs.Amount[i] = amount;
+		modelInputs.YearMonthDayTime[i] = System.currentTimeMillis();
 
 		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -147,32 +137,14 @@ public class BankService extends Application {
 			ResultSet rs = prep.executeQuery();
 			if (!rs.next())
 				throw new MegaBankException("Merchant not found");
-			modelInputs.MerchantState[LafalceInputs.TIMESTEPS - 1] = rs.getString(1);
-			modelInputs.Zip[LafalceInputs.TIMESTEPS - 1] = rs.getString(2);
-			modelInputs.MerchantCity[LafalceInputs.TIMESTEPS - 1] = rs.getString(3);
-			modelInputs.MerchantName[LafalceInputs.TIMESTEPS - 1] = rs.getString(4);
-			modelInputs.MCC[LafalceInputs.TIMESTEPS - 1] = Integer.toString(rs.getInt(5));
+			modelInputs.MerchantState[i] = rs.getString(1);
+			modelInputs.Zip[i] = rs.getString(2);
+			modelInputs.MerchantCity[i] = rs.getString(3);
+			modelInputs.MerchantName[i] = rs.getString(4);
+			modelInputs.MCC[i] = Integer.toString(rs.getInt(5));
 		}
 
-		Entity<LafalceInputs> entity = Entity.json(tfInputs);
-		try (Response resp = modelServer.request().post(entity)) {
-			int httpStatus = resp.getStatus();
-			if (httpStatus != 200) {
-				System.err.println("Got " + httpStatus + " from TF Server\n" + resp.readEntity(String.class));
-				System.err.println(tfInputs.toString());
-				return false;
-			}
-			// System.out.println(resp.readEntity(String.class));
-			float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
-			float fraud = outputs[outputs.length - 1][0][0];
-			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
-			boolean isFraud = fraud > 0.5;
-			if (isFraud) {
-				// System.out.println("FRAUD FRAUD FRAUD: " + fraud);
-			}
-
-			return isFraud;
-		}
+		return model.checkFraud(modelInputs);
 	}
 
 	@POST

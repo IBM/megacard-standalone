@@ -1,7 +1,6 @@
 package com.ibm.lozperf.mb;
 
 import java.io.StringWriter;
-import java.math.BigDecimal;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -10,35 +9,14 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
-public class LafalceInputs {
-	public static final int TIMESTEPS = 7;
-
+public class ServingInputWrapper {
 	private static final Marshaller marshaller = createMarshaller();
 
 	@XmlElement
-	public Inputs inputs = new Inputs();
-
-	@XmlRootElement
-	public static class Inputs {
-
-		@XmlElement
-		public BigDecimal[] Amount = new BigDecimal[TIMESTEPS];
-		@XmlElement
-		public String[] UseChip = new String[TIMESTEPS];
-		@XmlElement
-		public String[] MerchantName = new String[TIMESTEPS];
-		@XmlElement
-		public String[] MerchantCity = new String[TIMESTEPS];
-		@XmlElement
-		public String[] MerchantState = new String[TIMESTEPS];
-		@XmlElement
-		public String[] Zip = new String[TIMESTEPS];
-		@XmlElement
-		public String[] MCC = new String[TIMESTEPS];
-		@XmlElement
-		public String[] Errors = new String[TIMESTEPS];
-		@XmlElement
-		public long[] YearMonthDayTime = new long[TIMESTEPS];
+	public Inputs inputs;
+	
+	public ServingInputWrapper(Inputs inputs) {
+		this.inputs = inputs;
 	}
 
 	@Override
@@ -56,7 +34,7 @@ public class LafalceInputs {
 
 		Marshaller jaxbMarshaller = null;
 		try {
-			JAXBContext jaxbContext = JAXBContext.newInstance(LafalceInputs.class);
+			JAXBContext jaxbContext = JAXBContext.newInstance(ServingInputWrapper.class);
 			jaxbMarshaller = jaxbContext.createMarshaller();
 
 			// To format JSON
