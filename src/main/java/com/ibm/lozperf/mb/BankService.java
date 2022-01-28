@@ -35,6 +35,7 @@ import javax.ws.rs.core.MediaType;
 public class BankService extends Application {
 
 	private final static boolean CHECK_FRAUD = Boolean.parseBoolean(System.getenv("CHECK_FRAUD"));
+	private final static String MODEL_CLASS_NAME = System.getenv("ModelAdapterClass");
 
 	// private static DataSource ds = retrieveDataSource();
 	@Resource(name = "jdbc/MegaBankDataSource")
@@ -45,9 +46,19 @@ public class BankService extends Application {
 
 	private ModelAdapter model;
 
+	public BankService() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+		try {
+			Class<?> modelClass = Class.forName(MODEL_CLASS_NAME);
+			System.out.println("Model Class: " + modelClass);
+			model = (ModelAdapter) modelClass.newInstance();
+		} catch (Throwable e) {
+			e.printStackTrace();
+			throw e;
+		}
+	}
+
 	@PostConstruct
 	public void init() {
-		model = new TFServingAdapter();
 		System.out.println("Ready");
 	}
 
@@ -90,15 +101,13 @@ public class BankService extends Application {
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "+(model.numberTimesteps()- 1)+") ch "
-				+ "LEFT JOIN ERROR err ON ch.errid=err.errid "
+				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "
+				+ (model.numberTimesteps() - 1) + ") ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
 				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
 				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
 				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid "
-				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' "
-				+ "ORDER BY hd.time ASC";
+				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' " + "ORDER BY hd.time ASC";
 
-		
 		Inputs modelInputs = new Inputs(model.numberTimesteps());
 		CreditcardTransactionType[] trantypes = CreditcardTransactionType.values();
 
@@ -322,6 +331,6 @@ public class BankService extends Application {
 	@GET
 	@Path("test")
 	public String test() {
-		return "OK";
+		return "OK\n";
 	}
 }

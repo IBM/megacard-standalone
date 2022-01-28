@@ -14,7 +14,8 @@ public class TFJavaAdapter implements ModelAdapter {
 
 	private final static String TF_MODEL = System.getenv("TF_MODEL");
 
-	private SavedModelBundle smb;
+	protected SavedModelBundle smb;
+
 	public TFJavaAdapter() {
 		Loader loader = SavedModelBundle.loader(TF_MODEL);
 		smb = loader.load();
@@ -27,7 +28,6 @@ public class TFJavaAdapter implements ModelAdapter {
 
 	@Override
 	public boolean checkFraud(Inputs inputs) {
-
 
 		Map<String, Tensor> inputMap = new HashMap<>();
 		float[] amounts = new float[inputs.Amount.length];
@@ -46,7 +46,7 @@ public class TFJavaAdapter implements ModelAdapter {
 
 		Map<String, Tensor> output = smb.call(inputMap);
 		TFloat32 tf32 = (TFloat32) output.get("sequential_12");
-		return tf32.getFloat(tf32.size()-1,0,0) > 0.5;
+		return tf32.getFloat(tf32.size() - 1, 0, 0) > 0.5;
 	}
 
 	@Override
