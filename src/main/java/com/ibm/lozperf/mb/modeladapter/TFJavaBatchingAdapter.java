@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.modeladapter;
 
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +11,10 @@ import org.tensorflow.ndarray.buffer.DataBuffers;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt64;
 import org.tensorflow.types.TString;
+
+import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.batching.BatchCollector;
+import com.ibm.lozperf.mb.batching.Job;
 
 public class TFJavaBatchingAdapter extends TFJavaAdapter {
 

@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.batching;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.batching;
 
 public class Job<E> {
 	private volatile E input;

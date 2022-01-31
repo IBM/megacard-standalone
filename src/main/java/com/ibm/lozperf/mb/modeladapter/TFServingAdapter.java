@@ -1,10 +1,15 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.modeladapter;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
+
+import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.LafalceOutputs;
+import com.ibm.lozperf.mb.ModelAdapter;
+import com.ibm.lozperf.mb.ServingInputWrapper;
 
 public class TFServingAdapter implements ModelAdapter {
 

@@ -1,6 +1,9 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.modeladapter;
 
 import java.util.Arrays;
+
+import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.batching.Job;
 
 public class TFJavaNotBatchingAdapter extends TFJavaBatchingAdapter {
 	

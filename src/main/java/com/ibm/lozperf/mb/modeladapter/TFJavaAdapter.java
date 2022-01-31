@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.modeladapter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +9,9 @@ import org.tensorflow.Tensor;
 import org.tensorflow.types.TFloat32;
 import org.tensorflow.types.TInt64;
 import org.tensorflow.types.TString;
+
+import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelAdapter;
 
 public class TFJavaAdapter implements ModelAdapter {
 
