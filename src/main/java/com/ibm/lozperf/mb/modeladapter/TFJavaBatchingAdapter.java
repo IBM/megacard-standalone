@@ -55,7 +55,7 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 		}
 	}
 
-	protected void batchPredict(List<Job<Inputs>> batch) {
+	protected Map<String, Tensor> tensorfyInputs(List<Job<Inputs>> batch){
 		int nTS = numberTimesteps();
 		Shape shape = Shape.of(batch.size(), nTS);
 		TFloat32 amount = TFloat32.tensorOf(shape);
@@ -95,14 +95,21 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 		inputMap.put("MCC", TString.tensorOf(shape, mcc));
 		inputMap.put("Errors", TString.tensorOf(shape, errors));
 		inputMap.put("YearMonthDayTime", date);
-
-		Map<String, Tensor> output = smb.call(inputMap);
-		TFloat32 tf32 = (TFloat32) output.get("sequential_12");
-		// System.out.println("Shape: " + tf32.shape());
+		
+		return inputMap;
+	}
+	protected void setResult(List<Job<Inputs>> batch, TFloat32 result) {
 		for (int i = 0; i < batch.size(); i++) {
-			boolean fraud = tf32.getFloat(nTS - 1, i, 0) > 0.5;
+			boolean fraud = result.getFloat(numberTimesteps() - 1, i, 0) > 0.5;
 			batch.get(i).setResult(fraud);
 		}
+	}
+	
+	protected void batchPredict(List<Job<Inputs>> batch) {
+		Map<String, Tensor> inputMap = tensorfyInputs(batch);
+		Map<String, Tensor> output = smb.call(inputMap);
+		TFloat32 tf32 = (TFloat32) output.get("sequential_12");
+		setResult(batch, tf32);
 	}
 
 	@Override
