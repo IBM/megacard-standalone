@@ -46,19 +46,29 @@ public class BankService extends Application {
 
 	private ModelAdapter model;
 
-	public BankService() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+	private static Class<?> modelClass;
+	static {
 		try {
-			Class<?> modelClass = Class.forName(MODEL_CLASS_NAME);
+			System.out.println("Model Class Name: " + MODEL_CLASS_NAME);
+			modelClass = Class.forName(MODEL_CLASS_NAME);
 			System.out.println("Model Class: " + modelClass);
-			model = (ModelAdapter) modelClass.newInstance();
 		} catch (Throwable e) {
 			e.printStackTrace();
-			throw e;
+			throw new RuntimeException();
 		}
+	}
+	
+	public BankService() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+
 	}
 
 	@PostConstruct
 	public void init() {
+		try {
+			model = (ModelAdapter) modelClass.newInstance();
+		} catch (IllegalAccessException | InstantiationException e) {
+			e.printStackTrace();
+		}
 		System.out.println("Ready");
 	}
 

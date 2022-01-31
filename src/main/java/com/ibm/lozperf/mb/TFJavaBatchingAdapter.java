@@ -23,23 +23,35 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 	public TFJavaBatchingAdapter() {
 		super();
 		for (int i = 0; i < predictThreads.length; i++) {
-			predictThreads[i] = new Thread(() -> predictWorker());
+			final int thNum = i;
+			predictThreads[i] = new Thread() {
+				private long nBatches = 0;
+				private long nElements = 0;
+				@Override
+				public void run() {
+					while (!shutdown) {
+						try {
+							List<Job<Inputs>> batch = batchCollector.removeBatch();
+							batchPredict(batch);
+							
+							nBatches++;
+							nElements += batch.size();
+							if (nElements % 4000 == 0) {
+								System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches));
+								nBatches = 0;
+								nElements = 0;
+							}
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			};
 			predictThreads[i].start();
 		}
 	}
 
-	private void predictWorker() {
-		while (!shutdown) {
-			try {
-				List<BatchCollector<Inputs>.Job> batch = batchCollector.removeBatch();
-				batchPredict(batch);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	protected void batchPredict(List<BatchCollector<Inputs>.Job> batch) {
+	protected void batchPredict(List<Job<Inputs>> batch) {
 		int nTS = numberTimesteps();
 		Shape shape = Shape.of(batch.size(), nTS);
 		TFloat32 amount = TFloat32.tensorOf(shape);
