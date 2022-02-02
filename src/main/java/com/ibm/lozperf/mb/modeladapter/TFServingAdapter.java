@@ -9,7 +9,6 @@ import javax.ws.rs.core.Response;
 import com.ibm.lozperf.mb.Inputs;
 import com.ibm.lozperf.mb.LafalceOutputs;
 import com.ibm.lozperf.mb.ModelAdapter;
-import com.ibm.lozperf.mb.ServingInputWrapper;
 
 public class TFServingAdapter implements ModelAdapter {
 

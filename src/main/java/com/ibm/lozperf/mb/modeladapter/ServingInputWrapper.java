@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb;
+package com.ibm.lozperf.mb.modeladapter;
 
 import java.io.StringWriter;
 
@@ -7,6 +7,8 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import com.ibm.lozperf.mb.Inputs;
 
 @XmlRootElement
 public class ServingInputWrapper {
