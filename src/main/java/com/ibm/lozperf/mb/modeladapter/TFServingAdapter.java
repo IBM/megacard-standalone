@@ -52,11 +52,6 @@ public class TFServingAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public int numberTimesteps() {
-		return 7;
-	}
-
-	@Override
 	public void close() throws Exception {
 		httpClient.close();
 	}
