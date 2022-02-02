@@ -7,10 +7,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
+import javax.ejb.AsyncResult;
+import javax.ejb.Asynchronous;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.Singleton;
@@ -57,7 +61,7 @@ public class BankService extends Application {
 			throw new RuntimeException();
 		}
 	}
-	
+
 	public BankService() throws ClassNotFoundException, IllegalAccessException, InstantiationException {
 
 	}
@@ -108,7 +112,7 @@ public class BankService extends Application {
 		}
 	}
 
-	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
+	private Inputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
 				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "
@@ -140,7 +144,7 @@ public class BankService extends Application {
 		}
 		if (i != model.numberTimesteps() - 1) {
 			System.out.println("Not Enough history to check Fraud");
-			return false;
+			return null;
 		}
 
 		modelInputs.UseChip[i] = useChip.stringValue;
@@ -162,8 +166,30 @@ public class BankService extends Application {
 			modelInputs.MerchantName[i] = rs.getString(4);
 			modelInputs.MCC[i] = Integer.toString(rs.getInt(5));
 		}
+		return modelInputs;
+	}
 
-		return model.checkFraud(modelInputs);
+	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
+			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
+		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip);
+		if (in == null)
+			return false;
+		return model.checkFraud(in);
+	}
+
+	@Asynchronous
+	private Future<Boolean> asyncCallModel(Inputs in) {
+		boolean fraud = model.checkFraud(in);
+		return new AsyncResult<>(fraud);
+	}
+
+	private Future<Boolean> asyncCheckFraud(Connection con, CardAccount cardAccount, int merchantAccId,
+			BigDecimal amount, CreditcardTransactionType useChip) throws SQLException, MegaBankException {
+		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip);
+		if (in == null)
+			return null;
+
+		return asyncCallModel(in);
 	}
 
 	@POST
@@ -193,6 +219,45 @@ public class BankService extends Application {
 				return false;
 			}
 			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			con.commit();
+			return true;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	@POST
+	@Path("TransferAsync")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces({ MediaType.APPLICATION_JSON })
+	public boolean doAsyncCardTransaction(CreditCardTransaction transaction)
+			throws MegaBankException, InterruptedException, ExecutionException {
+		// System.out.println(transaction.transactionUuid);
+		// System.out.println(transaction.cardNumber);
+		// System.out.println(transaction.amount);
+		try (Connection con = getConnection()) {
+			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
+				// System.out.println("Merchant not found");
+				return false;
+			}
+
+			CardAccount cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv,
+					transaction.expirationDate);
+			if (cardAccount == null) {
+				// System.out.println("Card not found");
+				return false;
+			}
+			Future<Boolean> isFraud = null;
+			if (CHECK_FRAUD) {
+				isFraud = asyncCheckFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
+						CreditcardTransactionType.ONLINE);
+			}
+			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			if (isFraud != null && isFraud.get()) {
+				con.rollback();
+				return false;
+			}
 			con.commit();
 			return true;
 		} catch (SQLException e) {
