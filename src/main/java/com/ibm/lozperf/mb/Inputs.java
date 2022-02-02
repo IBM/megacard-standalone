@@ -8,7 +8,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class Inputs {
 
-	public final int timeSteps;
+	public int timeSteps;
 	
 	@XmlElement
 	public BigDecimal[] Amount;
@@ -28,6 +28,10 @@ public class Inputs {
 	public String[] Errors;
 	@XmlElement
 	public long[] YearMonthDayTime;
+	
+	public Inputs() {
+		
+	}
 	
 	public Inputs(int timeSteps) {
 		this.timeSteps = timeSteps;

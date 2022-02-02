@@ -17,6 +17,10 @@ public class ServingInputWrapper {
 	@XmlElement
 	public Inputs inputs;
 	
+	public ServingInputWrapper() {
+		
+	}
+	
 	public ServingInputWrapper(Inputs inputs) {
 		this.inputs = inputs;
 	}
