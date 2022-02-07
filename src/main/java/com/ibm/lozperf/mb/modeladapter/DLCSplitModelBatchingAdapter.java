@@ -22,18 +22,22 @@ public class DLCSplitModelBatchingAdapter extends TFJavaBatchingAdapter {
 		Map<String, Tensor> map = tensorfyInputs(batch);
 		map = smb.call(map);
 		TFloat32 preprocessedTF32 = (TFloat32) map.get("tf.compat.v1.transpose");
+		map = null;
 		FloatDataBuffer preprocessedDB = DataBuffers.ofFloats(preprocessedTF32.size());
 		preprocessedTF32.read(preprocessedDB);
-		float[] preproccedArr = new float[(int) preprocessedDB.size()];
-		preprocessedDB.read(preproccedArr);
-		long[] shape = { nTS, batch.size(), preprocessedDB.size() / (nTS * batch.size()) };
-		OMTensor tctensor = new OMTensor(preproccedArr, shape);
-		OMTensorList tensorListIn = new OMTensorList(new OMTensor[] { tctensor });
-		OMTensorList tensorListOut = OMModel.mainGraph(tensorListIn);
-		OMTensor output = tensorListOut.getOmtByIndex(0);
-		float prediction[] = output.getFloatData();
+		preprocessedTF32 = null;
+		float[] preprocessedArr = new float[(int) preprocessedDB.size()];
+		preprocessedDB.read(preprocessedArr);
+		preprocessedDB = null;
+		long[] shape = { nTS, batch.size(), preprocessedArr.length / (nTS * batch.size()) };
+		OMTensor tctensor = new OMTensor(preprocessedArr, shape);
+		preprocessedArr = null;
+		OMTensorList tensorList = new OMTensorList(new OMTensor[] { tctensor });
+		tensorList = OMModel.mainGraph(tensorList);
+		float prediction[] = tensorList.getOmtByIndex(0).getFloatData();
+		tensorList = null;
 		for (int i = 0; i < batch.size(); i++) {
-			boolean fraud = prediction[(nTS - 1)*batch.size() + i] > 0.5;
+			boolean fraud = prediction[(nTS - 1) * batch.size() + i] > 0.5;
 			batch.get(i).setResult(fraud);
 		}
 	}
