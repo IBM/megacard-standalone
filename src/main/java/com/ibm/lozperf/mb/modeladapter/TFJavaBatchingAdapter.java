@@ -18,42 +18,9 @@ import com.ibm.lozperf.mb.batching.Job;
 
 public class TFJavaBatchingAdapter extends TFJavaAdapter {
 
-	private final static int nPredictThreads = Integer.parseInt(System.getenv("PREDICT_THREADS"));
 	
-	private BatchCollector<Inputs> batchCollector = new BatchCollector<>();
-	private volatile boolean shutdown = false;
-	private Thread predictThreads[] = new Thread[nPredictThreads];
-
-	public TFJavaBatchingAdapter() {
-		super();
-		for (int i = 0; i < predictThreads.length; i++) {
-			final int thNum = i;
-			predictThreads[i] = new Thread() {
-				private long nBatches = 0;
-				private long nElements = 0;
-				@Override
-				public void run() {
-					while (!shutdown) {
-						try {
-							List<Job<Inputs>> batch = batchCollector.removeBatch();
-							batchPredict(batch);
-							
-							nBatches++;
-							nElements += batch.size();
-							if (nElements % 4000 == 0) {
-								System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches));
-								nBatches = 0;
-								nElements = 0;
-							}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-				}
-			};
-			predictThreads[i].start();
-		}
-	}
+	
+	private BatchCollector<Inputs> batchCollector = new BatchCollector<>((batch)-> batchPredict(batch));
 
 	protected Map<String, Tensor> tensorfyInputs(List<Job<Inputs>> batch){
 		int nTS = numberTimesteps();
@@ -119,9 +86,7 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 
 	@Override
 	public void close() throws Exception {
-		shutdown = true;
-		for (Thread predictThread : predictThreads)
-			predictThread.interrupt();
+		batchCollector.close();
 		super.close();
 	}
 }
