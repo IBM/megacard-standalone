@@ -1,24 +1,24 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import com.ibm.lozperf.mb.Inputs;
-import com.ibm.lozperf.mb.ModelAdapter;
+import java.util.List;
 
-public class NullModelAdapter implements ModelAdapter {
+import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.batching.Job;
+
+public class NullBatchingAdapter extends AbstractBatchingAdapter{
 
 	private final static long NULL_SLEEP = Integer.parseInt(System.getenv("NULL_SLEEP"));
 	
 	@Override
-	public void close() throws Exception {
-	}
-
-	@Override
-	public boolean checkFraud(Inputs inputs) {
+	protected void batchPredict(List<Job<Inputs>> batch) {
 		try {
 			Thread.sleep(NULL_SLEEP);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		return false;
+		for (int i = 0; i < batch.size(); i++) {
+			batch.get(i).setResult(false);
+		}
 	}
 
 }

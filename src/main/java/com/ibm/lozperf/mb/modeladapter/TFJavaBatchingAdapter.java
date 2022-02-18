@@ -22,8 +22,8 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 	
 	private BatchCollector<Inputs> batchCollector = new BatchCollector<>((batch)-> batchPredict(batch));
 
-	protected Map<String, Tensor> tensorfyInputs(List<Job<Inputs>> batch){
-		int nTS = numberTimesteps();
+	public static Map<String, Tensor> tensorfyBatchInputs(List<Job<Inputs>> batch){
+		int nTS = batch.get(0).getInput().timeSteps;
 		Shape shape = Shape.of(batch.size(), nTS);
 		TFloat32 amount = TFloat32.tensorOf(shape);
 		DataBuffer<String> useChip = DataBuffers.ofObjects(String.class, shape.size());
@@ -73,7 +73,7 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 	}
 	
 	protected void batchPredict(List<Job<Inputs>> batch) {
-		Map<String, Tensor> inputMap = tensorfyInputs(batch);
+		Map<String, Tensor> inputMap = tensorfyBatchInputs(batch);
 		Map<String, Tensor> output = smb.call(inputMap);
 		TFloat32 tf32 = (TFloat32) output.get("sequential_12");
 		setResult(batch, tf32);

@@ -8,18 +8,22 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 public class BatchCollector<E> implements AutoCloseable {
 
-	private final static int nPredictThreads = Integer.parseInt(System.getenv("PREDICT_THREADS"));
-	private final static boolean PROFILE = Boolean.parseBoolean(System.getenv("PROFILE"));
+	final static int nPredictThreads = Integer.parseInt(System.getenv("PREDICT_THREADS"));
+	final static boolean PROFILE = Boolean.parseBoolean(System.getenv("PROFILE"));
+	final static int TARGET_BS = Integer.parseInt(System.getenv("TARGET_BS"));
+	final static int BATCH_TIMEOUT = Integer.parseInt(System.getenv("TARGET_BS"));
 
 	private ArrayList<Job<E>> jobList = new ArrayList<>();
-	private Object lock = new Object();
+	private Object lock = new ReentrantLock(true);
 	private boolean shutdown = false;
 	private Consumer<List<Job<E>>> predictCallback;
 	private Thread[] predictThreads = new Thread[nPredictThreads];
+	private long waitSince = Long.MAX_VALUE;
 
 	public BatchCollector(Consumer<List<Job<E>>> predictCallback) {
 		this.predictCallback = predictCallback;
@@ -30,40 +34,51 @@ public class BatchCollector<E> implements AutoCloseable {
 	}
 
 	public boolean predict(E inputs) {
+		long insTime = System.currentTimeMillis();
 		Job<E> job = new Job<E>(inputs);
 		synchronized (lock) {
 			jobList.add(job);
-			lock.notify();
+			if (insTime < waitSince)
+				waitSince = insTime;
+			if (jobList.size() == TARGET_BS)
+				lock.notify();
 		}
 		return job.getResult();
 	}
 
 	public List<Job<E>> removeBatch() throws InterruptedException {
-		List<Job<E>> oldJobList;
+		ArrayList<Job<E>> newJobList = new ArrayList<>(jobList.size() * 2);
 		synchronized (lock) {
-			while (jobList.size() == 0) {
-				lock.wait();
+			long wt = 0;
+			while (jobList.size() == 0 || (jobList.size() < TARGET_BS
+					&& (wt = System.currentTimeMillis() - waitSince + BATCH_TIMEOUT) > 0)) {
+				lock.wait(wt);
 			}
-			oldJobList = jobList;
-			jobList = new ArrayList<>(jobList.size());
+			List<Job<E>> oldJobList = jobList;
+			jobList = newJobList;
+			waitSince = Long.MAX_VALUE;
+			return oldJobList;
 		}
-		return oldJobList;
 	}
+
+	private final static int SAMPSIZE = Integer.parseInt(System.getenv("SAMPSIZE"));
+	private final static int PRESAMP = Integer.parseInt(System.getenv("PRESAMP"));
 
 	private class PredictThread extends Thread {
 		private long nBatches = 0;
 		private long nElements = 0;
+		private long totPredictTime = 0;
 		private final int thNum;
 
-		private final static int SAMPSIZE = 30000;
 		private short[] bs_buff = new short[SAMPSIZE];
 		private short[] lat_buff = new short[SAMPSIZE];
 		private int sampCount;
-		private int preSamp = 100000;
+		private int batchCount;
 
 		public PredictThread(int thNum) {
 			this.thNum = thNum;
 			setPriority(10);
+			setDaemon(true);
 		}
 
 		@Override
@@ -71,30 +86,30 @@ public class BatchCollector<E> implements AutoCloseable {
 			Timer timer = new Timer();
 			while (!shutdown) {
 				try {
+					batchCount++;
 					List<Job<E>> batch = removeBatch();
 					int bs = batch.size();
-					long start = 0;
+					long start = System.currentTimeMillis();
+					;
 					boolean sample = false;
 					StackDumpTask stackDump = null;
 					if (PROFILE) {
-						if (preSamp == 0 && sampCount < SAMPSIZE) {
-							if (preSamp == 0 && sampCount == 0)
+						if (batchCount > PRESAMP && sampCount < SAMPSIZE) {
+							if (sampCount == 0)
 								System.out.println("Start Profile");
 							sample = true;
 							stackDump = new StackDumpTask();
 							timer.schedule(stackDump, 30);
-							start = System.currentTimeMillis();
 							stackDump.start = start;
-						} else
-							preSamp--;
+						}
 					}
 					predictCallback.accept(batch);
+					long end = System.currentTimeMillis();
 					if (sample) {
-						long end = System.currentTimeMillis();
-						if(stackDump!=null) {
+						if (stackDump != null) {
 							stackDump.cancel();
 						}
-						
+
 						lat_buff[sampCount] = (short) (end - start);
 						bs_buff[sampCount] = (short) bs;
 						sampCount++;
@@ -113,22 +128,27 @@ public class BatchCollector<E> implements AutoCloseable {
 
 					nBatches++;
 					nElements += bs;
+					totPredictTime += end - start;
 					if (nElements % 4000 == 0) {
-						System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches));
+						System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches) + 
+								" Time per Batch: " + ((float)totPredictTime/nBatches) +
+								" per Element: " + ((float)totPredictTime/nElements));
 						nBatches = 0;
 						nElements = 0;
+						totPredictTime = 0;
 					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
 		}
-		private class StackDumpTask extends TimerTask{
-			
+
+		private class StackDumpTask extends TimerTask {
+
 			long start;
-			
+
 			@Override
-			public void run() {	
+			public void run() {
 				long now = System.currentTimeMillis();
 				State state = getState();
 				StackTraceElement[] stackTrace = getStackTrace();
@@ -137,14 +157,14 @@ public class BatchCollector<E> implements AutoCloseable {
 				dump.append(": ");
 				dump.append(state);
 				dump.append(" after ");
-				dump.append(now-start);
+				dump.append(now - start);
 				dump.append("ms");
 				for (final StackTraceElement stackTraceElement : stackTrace) {
 					dump.append("\n        at ");
 					dump.append(stackTraceElement);
 				}
 				dump.append("\n\n");
-				System.out.println(dump.toString());			
+				System.out.println(dump.toString());
 			}
 		}
 	}

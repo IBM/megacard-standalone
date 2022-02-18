@@ -200,24 +200,37 @@ public class BankService extends Application {
 		// System.out.println(transaction.transactionUuid);
 		// System.out.println(transaction.cardNumber);
 		// System.out.println(transaction.amount);
+		CardAccount cardAccount;
+		Inputs in = null;
 		try (Connection con = getConnection()) {
+			//con.setReadOnly(true);
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
 				// System.out.println("Merchant not found");
 				return false;
 			}
 
-			CardAccount cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv,
+			cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv,
 					transaction.expirationDate);
 			if (cardAccount == null) {
 				// System.out.println("Card not found");
 				return false;
 			}
 
-			if (CHECK_FRAUD && checkFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
-					CreditcardTransactionType.ONLINE)) {
-				con.rollback();
-				return false;
+			if (CHECK_FRAUD) {
+				in = getUserHistory(con, cardAccount, transaction.merchantAcc, transaction.amount,
+						CreditcardTransactionType.ONLINE);
 			}
+//		} catch (SQLException e1) {
+//			e1.printStackTrace();
+//			return false;
+//		}
+
+		if (in != null) {
+			if (model.checkFraud(in))
+				return false;
+		}
+
+//		try (Connection con = getConnection()) {
 			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
 			con.commit();
 			return true;
@@ -248,6 +261,7 @@ public class BankService extends Application {
 				// System.out.println("Card not found");
 				return false;
 			}
+
 			Future<Boolean> isFraud = null;
 			if (CHECK_FRAUD) {
 				isFraud = asyncCheckFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,

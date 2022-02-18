@@ -29,9 +29,8 @@ public class TFJavaAdapter implements ModelAdapter {
 		smb.close();
 	}
 
-	@Override
-	public boolean checkFraud(Inputs inputs) {
-
+	
+	public Map<String, Tensor> tensorfyInputs(Inputs inputs){
 		Map<String, Tensor> inputMap = new HashMap<>();
 		float[] amounts = new float[inputs.Amount.length];
 		for (int i = 0; i < inputs.Amount.length; i++) {
@@ -46,9 +45,15 @@ public class TFJavaAdapter implements ModelAdapter {
 		inputMap.put("MCC", TString.vectorOf(inputs.MCC));
 		inputMap.put("Errors", TString.vectorOf(inputs.Errors));
 		inputMap.put("YearMonthDayTime", TInt64.vectorOf(inputs.YearMonthDayTime));
+		return inputMap;
+	}
+	
+	@Override
+	public boolean checkFraud(Inputs inputs) {
 
-		Map<String, Tensor> output = smb.call(inputMap);
-		TFloat32 tf32 = (TFloat32) output.get("sequential_12");
+		Map<String,Tensor> map = tensorfyInputs(inputs);
+		map = smb.call(map);
+		TFloat32 tf32 = (TFloat32) map.get("sequential_12");
 		return tf32.getFloat(tf32.size() - 1, 0, 0) > 0.5;
 	}
 

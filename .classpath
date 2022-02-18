@@ -22,7 +22,11 @@
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/javacpp-1.5.4-linux-x86_64.jar"/>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/ndarray-0.3.3.jar"/>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/protobuf-java-3.8.0.jar"/>
-	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/tensorflow-core-api-0.3.3.jar"/>
+	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/tensorflow-core-api-0.3.3.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:platform:/resource/MegaCardStandalone/doc/tensorflow-core-api-0.3.3-javadoc.jar!/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/tensorflow-core-api-0.3.3-linux-s390x.jar"/>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/tensorflow/tensorflow-core-api-0.3.3-linux-x86_64.jar"/>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/ccfd_java_jan.jar"/>

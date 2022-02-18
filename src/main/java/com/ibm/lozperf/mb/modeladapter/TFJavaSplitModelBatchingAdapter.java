@@ -23,7 +23,7 @@ public class TFJavaSplitModelBatchingAdapter extends TFJavaBatchingAdapter {
 	
 	@Override
 	protected void batchPredict(List<Job<Inputs>> batch) {
-		Map<String, Tensor> inputMap = tensorfyInputs(batch);
+		Map<String, Tensor> inputMap = tensorfyBatchInputs(batch);
 		Map<String, Tensor> output = smb.call(inputMap);
 		inputMap.clear();
 		inputMap.put("lstm_2_input", output.get("tf.compat.v1.transpose"));
