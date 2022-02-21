@@ -5,11 +5,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import net.openhft.affinity.impl.LinuxHelper;
 
 public class BatchCollector<E> implements AutoCloseable {
 
@@ -17,6 +20,7 @@ public class BatchCollector<E> implements AutoCloseable {
 	final static boolean PROFILE = Boolean.parseBoolean(System.getenv("PROFILE"));
 	final static int TARGET_BS = Integer.parseInt(System.getenv("TARGET_BS"));
 	final static int BATCH_TIMEOUT = Integer.parseInt(System.getenv("TARGET_BS"));
+	final static boolean PIN_PREDICT_THREADS = Boolean.parseBoolean(System.getenv("PIN_PREDICT_THREADS"));
 
 	private ArrayList<Job<E>> jobList = new ArrayList<>();
 	private Object lock = new ReentrantLock(true);
@@ -24,6 +28,8 @@ public class BatchCollector<E> implements AutoCloseable {
 	private Consumer<List<Job<E>>> predictCallback;
 	private Thread[] predictThreads = new Thread[nPredictThreads];
 	private long waitSince = Long.MAX_VALUE;
+
+	final static BitSet[] CPU_SOCKETS = CPUTopology.getSockets();
 
 	public BatchCollector(Consumer<List<Job<E>>> predictCallback) {
 		this.predictCallback = predictCallback;
@@ -83,7 +89,15 @@ public class BatchCollector<E> implements AutoCloseable {
 
 		@Override
 		public void run() {
-			Timer timer = new Timer();
+			Timer timer = null;
+			if (PROFILE)
+				timer = new Timer();
+			if(PIN_PREDICT_THREADS) {
+				BitSet socket = CPU_SOCKETS[thNum % CPU_SOCKETS.length];
+				System.out.println("Pin PredictThread " + thNum + " to CPUs " + socket);
+				LinuxHelper.sched_setaffinity(socket);
+			}
+			
 			while (!shutdown) {
 				try {
 					batchCount++;
@@ -130,9 +144,9 @@ public class BatchCollector<E> implements AutoCloseable {
 					nElements += bs;
 					totPredictTime += end - start;
 					if (nElements % 4000 == 0) {
-						System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches) + 
-								" Time per Batch: " + ((float)totPredictTime/nBatches) +
-								" per Element: " + ((float)totPredictTime/nElements));
+						System.out.println(thNum + ": Avg Batch Size: " + ((float) nElements / nBatches)
+								+ " Time per Batch: " + ((float) totPredictTime / nBatches) + " per Element: "
+								+ ((float) totPredictTime / nElements));
 						nBatches = 0;
 						nElements = 0;
 						totPredictTime = 0;
