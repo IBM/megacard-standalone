@@ -58,6 +58,8 @@ public class BatchCollector<E> implements AutoCloseable {
 			long wt = 0;
 			while (jobList.size() == 0 || (jobList.size() < TARGET_BS
 					&& (wt = System.currentTimeMillis() - waitSince + BATCH_TIMEOUT) > 0)) {
+				if(shutdown)
+					throw new InterruptedException();
 				lock.wait(wt);
 			}
 			List<Job<E>> oldJobList = jobList;
@@ -185,6 +187,7 @@ public class BatchCollector<E> implements AutoCloseable {
 
 	@Override
 	public void close() throws Exception {
+		System.out.println("close BatchCollector");
 		shutdown = true;
 		for (Thread predictThread : predictThreads)
 			predictThread.interrupt();
