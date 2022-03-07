@@ -55,7 +55,7 @@ public class BatchCollector<E> implements AutoCloseable {
 	public List<Job<E>> removeBatch() throws InterruptedException {
 		ArrayList<Job<E>> newJobList = new ArrayList<>(jobList.size() * 2);
 		synchronized (lock) {
-			long wt = 0;
+			long wt = BATCH_TIMEOUT;
 			while (jobList.size() == 0 || (jobList.size() < TARGET_BS
 					&& (wt = waitSince + BATCH_TIMEOUT - System.currentTimeMillis()) > 0)) {
 				if(shutdown)
