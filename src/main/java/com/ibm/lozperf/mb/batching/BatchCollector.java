@@ -57,7 +57,7 @@ public class BatchCollector<E> implements AutoCloseable {
 		synchronized (lock) {
 			long wt = 0;
 			while (jobList.size() == 0 || (jobList.size() < TARGET_BS
-					&& (wt = System.currentTimeMillis() - waitSince + BATCH_TIMEOUT) > 0)) {
+					&& (wt = waitSince + BATCH_TIMEOUT - System.currentTimeMillis()) > 0)) {
 				if(shutdown)
 					throw new InterruptedException();
 				lock.wait(wt);
