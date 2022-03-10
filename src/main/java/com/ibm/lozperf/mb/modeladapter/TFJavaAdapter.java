@@ -34,17 +34,17 @@ public class TFJavaAdapter implements ModelAdapter {
 		Map<String, Tensor> inputMap = new HashMap<>();
 		float[] amounts = new float[inputs.Amount.length];
 		for (int i = 0; i < inputs.Amount.length; i++) {
-			amounts[i] = inputs.Amount[i].floatValue();
+			amounts[i] = inputs.Amount[0][i].floatValue();
 		}
 		inputMap.put("Amount", TFloat32.vectorOf(amounts));
-		inputMap.put("UseChip", TString.vectorOf(inputs.UseChip));
-		inputMap.put("MerchantName", TString.vectorOf(inputs.MerchantName));
-		inputMap.put("MerchantCity", TString.vectorOf(inputs.MerchantCity));
-		inputMap.put("MerchantState", TString.vectorOf(inputs.MerchantState));
-		inputMap.put("Zip", TString.vectorOf(inputs.Zip));
-		inputMap.put("MCC", TString.vectorOf(inputs.MCC));
-		inputMap.put("Errors", TString.vectorOf(inputs.Errors));
-		inputMap.put("YearMonthDayTime", TInt64.vectorOf(inputs.YearMonthDayTime));
+		inputMap.put("UseChip", TString.vectorOf(inputs.UseChip[0]));
+		inputMap.put("MerchantName", TString.vectorOf(inputs.MerchantName[0]));
+		inputMap.put("MerchantCity", TString.vectorOf(inputs.MerchantCity[0]));
+		inputMap.put("MerchantState", TString.vectorOf(inputs.MerchantState[0]));
+		inputMap.put("Zip", TString.vectorOf(inputs.Zip[0]));
+		inputMap.put("MCC", TString.vectorOf(inputs.MCC[0]));
+		inputMap.put("Errors", TString.vectorOf(inputs.Errors[0]));
+		inputMap.put("YearMonthDayTime", TInt64.vectorOf(inputs.YearMonthDayTime[0]));
 		return inputMap;
 	}
 	

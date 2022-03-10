@@ -130,15 +130,15 @@ public class BankService extends Application {
 			prep.setInt(1, cardAccount.card);
 			ResultSet rs = prep.executeQuery();
 			while (rs.next()) {
-				modelInputs.UseChip[i] = trantypes[rs.getInt(1)].stringValue;
-				modelInputs.Errors[i] = rs.getString(2);
-				modelInputs.MerchantState[i] = rs.getString(3);
-				modelInputs.Zip[i] = rs.getString(4);
-				modelInputs.MerchantCity[i] = rs.getString(5);
-				modelInputs.MerchantName[i] = rs.getString(6);
-				modelInputs.MCC[i] = Integer.toString(rs.getInt(7));
-				modelInputs.Amount[i] = rs.getBigDecimal(8);
-				modelInputs.YearMonthDayTime[i] = rs.getDate(9).getTime();
+				modelInputs.UseChip[0][i] = trantypes[rs.getInt(1)].stringValue;
+				modelInputs.Errors[0][i] = rs.getString(2);
+				modelInputs.MerchantState[0][i] = rs.getString(3);
+				modelInputs.Zip[0][i] = rs.getString(4);
+				modelInputs.MerchantCity[0][i] = rs.getString(5);
+				modelInputs.MerchantName[0][i] = rs.getString(6);
+				modelInputs.MCC[0][i] = Integer.toString(rs.getInt(7));
+				modelInputs.Amount[0][i] = rs.getBigDecimal(8);
+				modelInputs.YearMonthDayTime[0][i] = rs.getDate(9).getTime();
 				i++;
 			}
 		}
@@ -147,10 +147,10 @@ public class BankService extends Application {
 			return null;
 		}
 
-		modelInputs.UseChip[i] = useChip.stringValue;
-		modelInputs.Errors[i] = "None";
-		modelInputs.Amount[i] = amount;
-		modelInputs.YearMonthDayTime[i] = System.currentTimeMillis();
+		modelInputs.UseChip[0][i] = useChip.stringValue;
+		modelInputs.Errors[0][i] = "None";
+		modelInputs.Amount[0][i] = amount;
+		modelInputs.YearMonthDayTime[0][i] = System.currentTimeMillis();
 
 		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -160,11 +160,11 @@ public class BankService extends Application {
 			ResultSet rs = prep.executeQuery();
 			if (!rs.next())
 				throw new MegaBankException("Merchant not found");
-			modelInputs.MerchantState[i] = rs.getString(1);
-			modelInputs.Zip[i] = rs.getString(2);
-			modelInputs.MerchantCity[i] = rs.getString(3);
-			modelInputs.MerchantName[i] = rs.getString(4);
-			modelInputs.MCC[i] = Integer.toString(rs.getInt(5));
+			modelInputs.MerchantState[0][i] = rs.getString(1);
+			modelInputs.Zip[0][i] = rs.getString(2);
+			modelInputs.MerchantCity[0][i] = rs.getString(3);
+			modelInputs.MerchantName[0][i] = rs.getString(4);
+			modelInputs.MCC[0][i] = Integer.toString(rs.getInt(5));
 		}
 		return modelInputs;
 	}

@@ -20,7 +20,7 @@ public class TFServingAdapter implements ModelAdapter {
 	public TFServingAdapter() {
 		ClientBuilder cb = ClientBuilder.newBuilder();
 		cb.property("com.ibm.ws.jaxrs.client.keepalive.connection", "keep-alive");
-		cb.property("com.ibm.ws.jaxrs.client.connection.timeout", "1000");
+		cb.property("com.ibm.ws.jaxrs.client.connection.timeout", "10000");
 		httpClient = cb.build();
 		// httpClient = ClientBuilder.newClient();
 		modelServer = httpClient.target(TF_URL);
@@ -39,7 +39,7 @@ public class TFServingAdapter implements ModelAdapter {
 			}
 			// System.out.println(resp.readEntity(String.class));
 			float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
-			float fraud = outputs[outputs.length - 1][0][0];
+			float fraud = outputs[0][outputs[0].length - 1][0];
 			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
 			boolean isFraud = fraud > 0.5;
 			if (isFraud) {

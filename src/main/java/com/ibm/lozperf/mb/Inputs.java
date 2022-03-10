@@ -11,23 +11,23 @@ public class Inputs {
 	public int timeSteps;
 	
 	@XmlElement
-	public BigDecimal[] Amount;
+	public BigDecimal[][] Amount;
 	@XmlElement
-	public String[] UseChip;
+	public String[][] UseChip;
 	@XmlElement
-	public String[] MerchantName;
+	public String[][] MerchantName;
 	@XmlElement
-	public String[] MerchantCity;
+	public String[][] MerchantCity;
 	@XmlElement
-	public String[] MerchantState;
+	public String[][] MerchantState;
 	@XmlElement
-	public String[] Zip;
+	public String[][] Zip;
 	@XmlElement
-	public String[] MCC;
+	public String[][] MCC;
 	@XmlElement
-	public String[] Errors;
+	public String[][] Errors;
 	@XmlElement
-	public long[] YearMonthDayTime;
+	public long[][] YearMonthDayTime;
 	
 	public Inputs() {
 		
@@ -35,14 +35,14 @@ public class Inputs {
 	
 	public Inputs(int timeSteps) {
 		this.timeSteps = timeSteps;
-		Amount = new BigDecimal[timeSteps];
-		UseChip = new String[timeSteps];
-		MerchantName = new String[timeSteps];
-		MerchantCity = new String[timeSteps];
-		MerchantState = new String[timeSteps];
-		Zip = new String[timeSteps];
-		MCC = new String[timeSteps];
-		Errors = new String[timeSteps];
-		YearMonthDayTime = new long[timeSteps];
+		Amount = new BigDecimal[1][timeSteps];
+		UseChip = new String[1][timeSteps];
+		MerchantName = new String[1][timeSteps];
+		MerchantCity = new String[1][timeSteps];
+		MerchantState = new String[1][timeSteps];
+		Zip = new String[1][timeSteps];
+		MCC = new String[1][timeSteps];
+		Errors = new String[1][timeSteps];
+		YearMonthDayTime = new long[1][timeSteps];
 	}
 }

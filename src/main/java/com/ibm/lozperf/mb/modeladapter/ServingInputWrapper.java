@@ -12,7 +12,6 @@ import com.ibm.lozperf.mb.Inputs;
 
 @XmlRootElement
 public class ServingInputWrapper {
-	private static final Marshaller marshaller = createMarshaller();
 
 	@XmlElement
 	public Inputs inputs;
@@ -29,6 +28,7 @@ public class ServingInputWrapper {
 	public String toString() {
 		StringWriter sw = new StringWriter();
 		try {
+			Marshaller marshaller = createMarshaller();
 			marshaller.marshal(this, sw);
 		} catch (JAXBException e) {
 			e.printStackTrace();

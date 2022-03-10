@@ -39,16 +39,16 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 		for (int i = 0; i < batch.size(); i++) {
 			Inputs inputs = batch.get(i).getInput();
 			for (int j = 0; j < nTS; j++) {
-				amount.setFloat(inputs.Amount[j].floatValue(), i, j);
-				date.setLong(inputs.YearMonthDayTime[j], i, j);
+				amount.setFloat(inputs.Amount[0][j].floatValue(), i, j);
+				date.setLong(inputs.YearMonthDayTime[0][j], i, j);
 
-				useChip.setObject(inputs.UseChip[j], i * nTS + j);
-				merchantName.setObject(inputs.MerchantName[j], i * nTS + j);
-				merchantCity.setObject(inputs.MerchantCity[j], i * nTS + j);
-				merchantState.setObject(inputs.MerchantState[j], i * nTS + j);
-				zip.setObject(inputs.Zip[j], i * nTS + j);
-				mcc.setObject(inputs.MCC[j], i * nTS + j);
-				errors.setObject(inputs.Errors[j], i * nTS + j);
+				useChip.setObject(inputs.UseChip[0][j], i * nTS + j);
+				merchantName.setObject(inputs.MerchantName[0][j], i * nTS + j);
+				merchantCity.setObject(inputs.MerchantCity[0][j], i * nTS + j);
+				merchantState.setObject(inputs.MerchantState[0][j], i * nTS + j);
+				zip.setObject(inputs.Zip[0][j], i * nTS + j);
+				mcc.setObject(inputs.MCC[0][j], i * nTS + j);
+				errors.setObject(inputs.Errors[0][j], i * nTS + j);
 			}
 
 		}
