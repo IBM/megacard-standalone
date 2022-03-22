@@ -32,8 +32,8 @@ public class TFJavaAdapter implements ModelAdapter {
 	
 	public Map<String, Tensor> tensorfyInputs(Inputs inputs){
 		Map<String, Tensor> inputMap = new HashMap<>();
-		float[] amounts = new float[inputs.Amount.length];
-		for (int i = 0; i < inputs.Amount.length; i++) {
+		float[] amounts = new float[inputs.Amount[0].length];
+		for (int i = 0; i < amounts.length; i++) {
 			amounts[i] = inputs.Amount[0][i].floatValue();
 		}
 		inputMap.put("Amount", TFloat32.vectorOf(amounts));
