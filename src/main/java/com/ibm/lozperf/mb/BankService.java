@@ -115,7 +115,7 @@ public class BankService extends Application {
 	private Inputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID ASC LIMIT "
+				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID DESC LIMIT "
 				+ (model.numberTimesteps() - 1) + ") ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
 				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
 				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
