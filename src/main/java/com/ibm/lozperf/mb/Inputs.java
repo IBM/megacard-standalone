@@ -13,7 +13,7 @@ public class Inputs {
 	@XmlElement
 	public BigDecimal[][] Amount;
 	@XmlElement
-	public String[][] UseChip;
+	public CreditcardTransactionType[][] UseChip;
 	@XmlElement
 	public String[][] MerchantName;
 	@XmlElement
@@ -36,7 +36,7 @@ public class Inputs {
 	public Inputs(int timeSteps) {
 		this.timeSteps = timeSteps;
 		Amount = new BigDecimal[1][timeSteps];
-		UseChip = new String[1][timeSteps];
+		UseChip = new CreditcardTransactionType[1][timeSteps];
 		MerchantName = new String[1][timeSteps];
 		MerchantCity = new String[1][timeSteps];
 		MerchantState = new String[1][timeSteps];

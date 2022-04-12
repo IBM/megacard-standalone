@@ -37,7 +37,7 @@ public class TFJavaAdapter implements ModelAdapter {
 			amounts[i] = inputs.Amount[0][i].floatValue();
 		}
 		inputMap.put("Amount", TFloat32.vectorOf(amounts));
-		inputMap.put("UseChip", TString.vectorOf(inputs.UseChip[0]));
+		inputMap.put("UseChip", TString.vectorOf(inputs.UseChip[0].toString()));
 		inputMap.put("MerchantName", TString.vectorOf(inputs.MerchantName[0]));
 		inputMap.put("MerchantCity", TString.vectorOf(inputs.MerchantCity[0]));
 		inputMap.put("MerchantState", TString.vectorOf(inputs.MerchantState[0]));

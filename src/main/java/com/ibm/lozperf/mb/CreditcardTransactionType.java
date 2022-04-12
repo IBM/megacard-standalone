@@ -9,4 +9,9 @@ public enum CreditcardTransactionType{
 	private CreditcardTransactionType(String stringValue) {
 		this.stringValue = stringValue;
 	}
+	
+	@Override
+	public String toString() {
+		return stringValue;
+	}
 }

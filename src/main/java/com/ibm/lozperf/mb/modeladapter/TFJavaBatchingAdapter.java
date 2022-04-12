@@ -42,7 +42,7 @@ public class TFJavaBatchingAdapter extends TFJavaAdapter {
 				amount.setFloat(inputs.Amount[0][j].floatValue(), i, j);
 				date.setLong(inputs.YearMonthDayTime[0][j], i, j);
 
-				useChip.setObject(inputs.UseChip[0][j], i * nTS + j);
+				useChip.setObject(inputs.UseChip[0][j].toString(), i * nTS + j);
 				merchantName.setObject(inputs.MerchantName[0][j], i * nTS + j);
 				merchantCity.setObject(inputs.MerchantCity[0][j], i * nTS + j);
 				merchantState.setObject(inputs.MerchantState[0][j], i * nTS + j);

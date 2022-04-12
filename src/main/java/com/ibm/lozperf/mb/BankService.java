@@ -130,7 +130,7 @@ public class BankService extends Application {
 			prep.setInt(1, cardAccount.card);
 			ResultSet rs = prep.executeQuery();
 			while (rs.next()) {
-				modelInputs.UseChip[0][i] = trantypes[rs.getInt(1)].stringValue;
+				modelInputs.UseChip[0][i] = trantypes[rs.getInt(1)];
 				modelInputs.Errors[0][i] = rs.getString(2);
 				modelInputs.MerchantState[0][i] = rs.getString(3);
 				modelInputs.Zip[0][i] = rs.getString(4);
@@ -147,7 +147,7 @@ public class BankService extends Application {
 			return null;
 		}
 
-		modelInputs.UseChip[0][i] = useChip.stringValue;
+		modelInputs.UseChip[0][i] = useChip;
 		modelInputs.Errors[0][i] = "None";
 		modelInputs.Amount[0][i] = amount;
 		modelInputs.YearMonthDayTime[0][i] = System.currentTimeMillis();
