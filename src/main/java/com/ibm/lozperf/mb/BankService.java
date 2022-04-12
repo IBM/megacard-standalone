@@ -113,7 +113,7 @@ public class BankService extends Application {
 	}
 
 	private Inputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
-			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
+			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
 				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID DESC LIMIT "
 				+ (model.numberTimesteps() - 1) + ") ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
@@ -150,7 +150,7 @@ public class BankService extends Application {
 		modelInputs.UseChip[0][i] = useChip;
 		modelInputs.Errors[0][i] = "None";
 		modelInputs.Amount[0][i] = amount;
-		modelInputs.YearMonthDayTime[0][i] = System.currentTimeMillis();
+		modelInputs.YearMonthDayTime[0][i] = timestamp;
 
 		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -170,8 +170,8 @@ public class BankService extends Application {
 	}
 
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
-			CreditcardTransactionType useChip) throws SQLException, MegaBankException {
-		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip);
+			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
+		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
 		if (in == null)
 			return false;
 		return model.checkFraud(in);
@@ -184,8 +184,9 @@ public class BankService extends Application {
 	}
 
 	private Future<Boolean> asyncCheckFraud(Connection con, CardAccount cardAccount, int merchantAccId,
-			BigDecimal amount, CreditcardTransactionType useChip) throws SQLException, MegaBankException {
-		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip);
+			BigDecimal amount, CreditcardTransactionType useChip, long timestamp)
+			throws SQLException, MegaBankException {
+		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
 		if (in == null)
 			return null;
 
@@ -197,20 +198,21 @@ public class BankService extends Application {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces({ MediaType.APPLICATION_JSON })
 	public boolean doCardTransaction(CreditCardTransaction transaction) throws MegaBankException {
+		if (transaction.timestamp == 0)
+			transaction.timestamp = System.currentTimeMillis();
 		// System.out.println(transaction.transactionUuid);
 		// System.out.println(transaction.cardNumber);
 		// System.out.println(transaction.amount);
 		CardAccount cardAccount;
 		Inputs in = null;
 		try (Connection con = getConnection()) {
-			//con.setReadOnly(true);
+			// con.setReadOnly(true);
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
 				// System.out.println("Merchant not found");
 				return false;
 			}
 
-			cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv,
-					transaction.expirationDate);
+			cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv, transaction.expirationDate);
 			if (cardAccount == null) {
 				// System.out.println("Card not found");
 				return false;
@@ -218,20 +220,21 @@ public class BankService extends Application {
 
 			if (CHECK_FRAUD) {
 				in = getUserHistory(con, cardAccount, transaction.merchantAcc, transaction.amount,
-						CreditcardTransactionType.ONLINE);
+						CreditcardTransactionType.ONLINE, transaction.timestamp);
 			}
 //		} catch (SQLException e1) {
 //			e1.printStackTrace();
 //			return false;
 //		}
 
-		if (in != null) {
-			if (model.checkFraud(in))
-				return false;
-		}
+			if (in != null) {
+				if (model.checkFraud(in))
+					return false;
+			}
 
 //		try (Connection con = getConnection()) {
-			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE,
+					transaction.timestamp);
 			con.commit();
 			return true;
 		} catch (SQLException e) {
@@ -250,6 +253,8 @@ public class BankService extends Application {
 		// System.out.println(transaction.cardNumber);
 		// System.out.println(transaction.amount);
 		try (Connection con = getConnection()) {
+			if (transaction.timestamp == 0)
+				transaction.timestamp = System.currentTimeMillis();
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
 				// System.out.println("Merchant not found");
 				return false;
@@ -265,9 +270,10 @@ public class BankService extends Application {
 			Future<Boolean> isFraud = null;
 			if (CHECK_FRAUD) {
 				isFraud = asyncCheckFraud(con, cardAccount, transaction.merchantAcc, transaction.amount,
-						CreditcardTransactionType.ONLINE);
+						CreditcardTransactionType.ONLINE, transaction.timestamp);
 			}
-			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE);
+			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE,
+					transaction.timestamp);
 			if (isFraud != null && isFraud.get()) {
 				con.rollback();
 				return false;
@@ -285,7 +291,7 @@ public class BankService extends Application {
 	private static final String depositSQL = "select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )";
 
 	public boolean transfer(Connection con, CardAccount card, int accidTo, BigDecimal amount,
-			CreditcardTransactionType type) throws MegaBankException, SQLException {
+			CreditcardTransactionType type, long timestamp) throws MegaBankException, SQLException {
 
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
@@ -318,7 +324,7 @@ public class BankService extends Application {
 				lastToTX = rs.getLong(1);
 			}
 
-			insertCardHistory(con, amount, accidTo, card, type, lastFromTX, lastToTX, null);
+			insertCardHistory(con, amount, accidTo, card, type, lastFromTX, lastToTX, null, timestamp);
 		} catch (SQLException e) {
 			System.err.println("ERROR MegaBankJDBCService: transfer()"); // FIX RM 2020-04-29
 			System.err.println(e.getMessage()); // FIX RM 2020-04-29
@@ -330,10 +336,10 @@ public class BankService extends Application {
 	}
 
 	private void insertCardHistory(Connection con, BigDecimal amount, int accidTo, CardAccount card,
-			CreditcardTransactionType type, long lastFromTX, long lastToTX, Integer errId)
+			CreditcardTransactionType type, long lastFromTX, long lastToTX, Integer errId, long timestamp)
 			throws MegaBankException, SQLException {
-		insertHistoryTransfer(con, "w", amount, accidTo, card.accountId, lastToTX, lastFromTX);
-		insertHistoryTransfer(con, "d", amount, card.accountId, accidTo, lastFromTX, lastToTX);
+		insertHistoryTransfer(con, "w", amount, accidTo, card.accountId, lastToTX, lastFromTX, timestamp);
+		insertHistoryTransfer(con, "d", amount, card.accountId, accidTo, lastFromTX, lastToTX, timestamp);
 
 		final String insertCardHistorySQL = "INSERT INTO CARDHISTORY (TXID, CCARDID, METHOD, ERRID) VALUES (?,?,?,?)";
 		try (PreparedStatement prep = con.prepareStatement(insertCardHistorySQL)) {
@@ -347,19 +353,19 @@ public class BankService extends Application {
 	}
 
 	private boolean insertHistoryTransfer(Connection con, String TRANSTYPE, BigDecimal AMOUNT, int REFACCID, int ACCID,
-			long lastREFTX, long lastTX) throws MegaBankException {
+			long lastREFTX, long lastTX, long timestamp) throws MegaBankException {
 
 		final String insertHistoryTransferSQL = "INSERT INTO HISTORY (TIME, TXID, TRANSTYPE, AMOUNT, REFTXID, ACCID) "
-				+ " VALUES (CURRENT TIMESTAMP,  ?, ?, ?, ?, ?) ";
+				+ " VALUES (?, ?, ?, ?, ?, ?) ";
 
 		if (insertIntoHistory)
 			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)) {
-
-				prep.setLong(1, (long) ACCID * 10000000000l + lastTX); // Use the ACCID to generate the "base" TXID
-				prep.setString(2, TRANSTYPE);
-				prep.setBigDecimal(3, AMOUNT);
-				prep.setLong(4, (long) REFACCID * 10000000000l + lastREFTX);
-				prep.setInt(5, ACCID);
+				prep.setLong(1, timestamp);
+				prep.setLong(2, (long) ACCID * 10000000000l + lastTX); // Use the ACCID to generate the "base" TXID
+				prep.setString(3, TRANSTYPE);
+				prep.setBigDecimal(4, AMOUNT);
+				prep.setLong(5, (long) REFACCID * 10000000000l + lastREFTX);
+				prep.setInt(6, ACCID);
 
 				int res = prep.executeUpdate();
 

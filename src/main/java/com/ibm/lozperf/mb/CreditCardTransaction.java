@@ -8,18 +8,20 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class CreditCardTransaction {
 	
-	@XmlElement
+	@XmlElement(required=true)
 	public String cardNumber;
-	@XmlElement
+	@XmlElement(required=true)
 	public String cvv;
-	@XmlElement
+	@XmlElement(required=true)
 	public String expirationDate;
-	@XmlElement
+	@XmlElement(required=true)
 	public int merchantAcc;
-	@XmlElement
+	@XmlElement(required=true)
 	public String merchantToken;
-	@XmlElement
+	@XmlElement(required=true)
 	public String transactionUuid;
-	@XmlElement
+	@XmlElement(required=true)
 	public BigDecimal amount;
+	@XmlElement
+	public long timestamp;
 }
