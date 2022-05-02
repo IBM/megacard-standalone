@@ -10,6 +10,17 @@ public enum CreditcardTransactionType{
 		this.stringValue = stringValue;
 	}
 	
+	
+	private final static CreditcardTransactionType[] values = values();
+			
+	public static CreditcardTransactionType getType(String stringValue) {
+		for(CreditcardTransactionType type: values) {
+			if(type.toString().equals(stringValue))
+					return type;
+		}		
+		throw new IllegalArgumentException();
+	}
+	
 	@Override
 	public String toString() {
 		return stringValue;

@@ -18,12 +18,12 @@ import com.ibm.onnxmlir.OMTensorList;
 
 public class DLCLongModelBatchingAdapter extends AbstractBatchingAdapter {
 
-	private final static Path STRING_MAP_DIR = Paths.get(System.getenv("STRING_MAP_DIR"));
-	private final static Map<String, Integer> mccMap = loadMap("MCC.csv");
-	private final static Map<String, Integer> cityMap = loadMap("MerchantCity.csv");
-	private final static Map<String, Integer> nameMap = loadMap("MerchantName.csv");
-	private final static Map<String, Integer> stateMap = loadMap("MerchantState.csv");
-	private final static Map<String, Integer> zipMap = loadMap("Zip.csv");
+	public final static Path STRING_MAP_DIR = Paths.get(System.getenv("STRING_MAP_DIR"));
+	public final static Map<String, Integer> mccMap = loadMap("MCC.csv");
+	public final static Map<String, Integer> cityMap = loadMap("MerchantCity.csv");
+	public final static Map<String, Integer> nameMap = loadMap("MerchantName.csv");
+	public final static Map<String, Integer> stateMap = loadMap("MerchantState.csv");
+	public final static Map<String, Integer> zipMap = loadMap("Zip.csv");
 
 	private static Map<String, Integer> loadMap(String name) {
 		File f = STRING_MAP_DIR.resolve(Paths.get(name)).toFile();
@@ -37,7 +37,7 @@ public class DLCLongModelBatchingAdapter extends AbstractBatchingAdapter {
 		}
 	}
 
-	private void map(String[] inp, Map<String, Integer> map, long[] target, int targetbase) {
+	public static void map(String[] inp, Map<String, Integer> map, long[] target, int targetbase) {
 		for (int j = 0; j < inp.length; j++) {
 			target[targetbase + j] = map.getOrDefault(inp[j], 0);
 		}

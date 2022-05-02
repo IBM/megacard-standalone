@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
+import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -138,7 +139,7 @@ public class BankService extends Application {
 				modelInputs.MerchantName[0][i] = rs.getString(6);
 				modelInputs.MCC[0][i] = Integer.toString(rs.getInt(7));
 				modelInputs.Amount[0][i] = rs.getBigDecimal(8);
-				modelInputs.YearMonthDayTime[0][i] = rs.getDate(9).getTime();
+				modelInputs.YearMonthDayTime[0][i] = rs.getTimestamp(9).getTime() * 1000000;
 				i++;
 			}
 		}
@@ -150,7 +151,7 @@ public class BankService extends Application {
 		modelInputs.UseChip[0][i] = useChip;
 		modelInputs.Errors[0][i] = "None";
 		modelInputs.Amount[0][i] = amount;
-		modelInputs.YearMonthDayTime[0][i] = timestamp;
+		modelInputs.YearMonthDayTime[0][i] = timestamp * 1000000;
 
 		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -197,30 +198,33 @@ public class BankService extends Application {
 	@Path("Transfer")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces({ MediaType.APPLICATION_JSON })
-	public boolean doCardTransaction(CreditCardTransaction transaction) throws MegaBankException {
+	public String doCardTransaction(CreditCardTransaction transaction) throws MegaBankException {
 		if (transaction.timestamp == 0)
 			transaction.timestamp = System.currentTimeMillis();
 		// System.out.println(transaction.transactionUuid);
 		// System.out.println(transaction.cardNumber);
 		// System.out.println(transaction.amount);
+
+		CreditcardTransactionType method = CreditcardTransactionType.getType(transaction.method);
+
 		CardAccount cardAccount;
 		Inputs in = null;
 		try (Connection con = getConnection()) {
 			// con.setReadOnly(true);
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {
 				// System.out.println("Merchant not found");
-				return false;
+				return "merchant auth failed";
 			}
 
 			cardAccount = getUserCard(con, transaction.cardNumber, transaction.cvv, transaction.expirationDate);
 			if (cardAccount == null) {
 				// System.out.println("Card not found");
-				return false;
+				return "card auth failed";
 			}
 
 			if (CHECK_FRAUD) {
-				in = getUserHistory(con, cardAccount, transaction.merchantAcc, transaction.amount,
-						CreditcardTransactionType.ONLINE, transaction.timestamp);
+				in = getUserHistory(con, cardAccount, transaction.merchantAcc, transaction.amount, method,
+						transaction.timestamp);
 			}
 //		} catch (SQLException e1) {
 //			e1.printStackTrace();
@@ -229,17 +233,17 @@ public class BankService extends Application {
 
 			if (in != null) {
 				if (model.checkFraud(in))
-					return false;
+					return "fraud";
 			}
 
 //		try (Connection con = getConnection()) {
-			transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, CreditcardTransactionType.ONLINE,
+			boolean success = transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, method,
 					transaction.timestamp);
 			con.commit();
-			return true;
+			return success ? "success" : "insufficant balance";
 		} catch (SQLException e) {
 			e.printStackTrace();
-			return false;
+			return "Technical Error";
 		}
 	}
 
@@ -305,7 +309,8 @@ public class BankService extends Application {
 				ResultSet rs = prep.executeQuery();
 				if (!rs.next()) {
 					con.rollback(startTransferSP);
-					throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
+					return false;
+					//throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
 				}
 				lastFromTX = rs.getLong(1);
 			}
@@ -360,7 +365,7 @@ public class BankService extends Application {
 
 		if (insertIntoHistory)
 			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)) {
-				prep.setLong(1, timestamp);
+				prep.setTimestamp(1, new Timestamp(timestamp));
 				prep.setLong(2, (long) ACCID * 10000000000l + lastTX); // Use the ACCID to generate the "base" TXID
 				prep.setString(3, TRANSTYPE);
 				prep.setBigDecimal(4, AMOUNT);

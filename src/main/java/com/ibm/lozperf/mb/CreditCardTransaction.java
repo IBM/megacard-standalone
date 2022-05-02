@@ -22,6 +22,8 @@ public class CreditCardTransaction {
 	public String transactionUuid;
 	@XmlElement(required=true)
 	public BigDecimal amount;
+	@XmlElement(required=true)
+	public String method;
 	@XmlElement
 	public long timestamp;
 }
