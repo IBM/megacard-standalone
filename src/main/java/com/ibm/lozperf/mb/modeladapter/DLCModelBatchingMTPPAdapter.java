@@ -1,6 +1,5 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import java.util.Calendar;
 import java.util.List;
 
 import com.ibm.lozperf.mb.Inputs;
@@ -36,7 +35,6 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 		long[] timeDeltas = new long[inpLenght];
 		long[] useChip = new long[inpLenght];
 		long[] zips = new long[inpLenght];
-
 
 		long[] shape = { batch.size(), nTS };
 
@@ -75,26 +73,21 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 	public boolean checkFraud(Inputs inputs) {
 		DlcInput dlcInputs = tlDlcInput.get();
 
-		Calendar calendar = Calendar.getInstance();
-		long lastTime = 0;
-		for (int idx = 0; idx < inputs.YearMonthDayTime[0].length; idx++) {
-			long time = inputs.YearMonthDayTime[0][idx];
-			dlcInputs.timeDeltas[idx] = time - lastTime;
-			lastTime = time;
-			calendar.setTimeInMillis(time);
-			dlcInputs.months[idx] = calendar.get(Calendar.MONTH);
-			dlcInputs.days[idx] = calendar.get(Calendar.DAY_OF_MONTH);
-			dlcInputs.hours[idx] = calendar.get(Calendar.HOUR_OF_DAY);
-			dlcInputs.minutes[idx] = calendar.get(Calendar.MINUTE);
-			dlcInputs.useChip[idx] = inputs.UseChip[0][idx].ordinal();
-			dlcInputs.amounts[idx] = inputs.Amount[0][idx].floatValue();
-		}
-		dlcInputs.timeDeltas[0] = 0; // lastTime is invalid for the first timeDelta
-		DLCLongModelBatchingAdapter.map(inputs.MCC[0], DLCLongModelBatchingAdapter.mccMap, dlcInputs.mccs, 0);
-		DLCLongModelBatchingAdapter.map(inputs.MerchantCity[0], DLCLongModelBatchingAdapter.cityMap, dlcInputs.cities, 0);
-		DLCLongModelBatchingAdapter.map(inputs.MerchantName[0], DLCLongModelBatchingAdapter.nameMap, dlcInputs.names, 0);
-		DLCLongModelBatchingAdapter.map(inputs.MerchantState[0], DLCLongModelBatchingAdapter.stateMap, dlcInputs.states, 0);
-		DLCLongModelBatchingAdapter.map(inputs.Zip[0], DLCLongModelBatchingAdapter.zipMap, dlcInputs.zips, 0);
+		for (int i = 0; i < inputs.Amount[0].length; i++)
+			dlcInputs.amounts[i] = inputs.Amount[0][i].floatValue();
+		
+		dlcInputs.minutes = inputs.Minute[0];
+		dlcInputs.hours = inputs.Hour[0];
+		dlcInputs.days = inputs.Day[0];
+		dlcInputs.months = inputs.Hour[0];	
+		dlcInputs.timeDeltas = inputs.TimeDelta[0];
+		dlcInputs.useChip = inputs.UseChip[0];
+		
+		DLCModelBatchingAdapter.map(inputs.MCC[0], DLCModelBatchingAdapter.mccMap, dlcInputs.mccs, 0);
+		DLCModelBatchingAdapter.map(inputs.MerchantCity[0], DLCModelBatchingAdapter.cityMap, dlcInputs.cities, 0);
+		DLCModelBatchingAdapter.map(inputs.MerchantName[0], DLCModelBatchingAdapter.nameMap, dlcInputs.names, 0);
+		DLCModelBatchingAdapter.map(inputs.MerchantState[0], DLCModelBatchingAdapter.stateMap, dlcInputs.states, 0);
+		DLCModelBatchingAdapter.map(inputs.Zip[0], DLCModelBatchingAdapter.zipMap, dlcInputs.zips, 0);
 
 		return batchCollector.predict(dlcInputs);
 	}
@@ -102,16 +95,16 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 	private class DlcInput {
 		final int inpLenghtnTimesteps = numberTimesteps();
 		float[] amounts = new float[inpLenghtnTimesteps];
-		int[] days = new int[inpLenghtnTimesteps];
-		int[] hours = new int[inpLenghtnTimesteps];
+		int[] days;
+		int[] hours;
 		long[] mccs = new long[inpLenghtnTimesteps];
 		long[] cities = new long[inpLenghtnTimesteps];
 		long[] names = new long[inpLenghtnTimesteps];
 		long[] states = new long[inpLenghtnTimesteps];
-		int[] minutes = new int[inpLenghtnTimesteps];
-		int[] months = new int[inpLenghtnTimesteps];
+		int[] minutes;
+		int[] months;
 		long[] timeDeltas = new long[inpLenghtnTimesteps];
-		long[] useChip = new long[inpLenghtnTimesteps];
+		long[] useChip;
 		long[] zips = new long[inpLenghtnTimesteps];
 	}
 }

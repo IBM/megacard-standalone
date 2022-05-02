@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Timestamp;
+import java.util.Calendar;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -124,14 +125,13 @@ public class BankService extends Application {
 				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' " + "ORDER BY hd.time ASC";
 
 		Inputs modelInputs = new Inputs(model.numberTimesteps());
-		CreditcardTransactionType[] trantypes = CreditcardTransactionType.values();
-
+		
 		int i = 0;
 		try (PreparedStatement prep = con.prepareStatement(historyQueryStr)) {
 			prep.setInt(1, cardAccount.card);
 			ResultSet rs = prep.executeQuery();
 			while (rs.next()) {
-				modelInputs.UseChip[0][i] = trantypes[rs.getInt(1)];
+				modelInputs.UseChip[0][i] = rs.getInt(1);
 				modelInputs.Errors[0][i] = rs.getString(2);
 				modelInputs.MerchantState[0][i] = rs.getString(3);
 				modelInputs.Zip[0][i] = rs.getString(4);
@@ -139,7 +139,7 @@ public class BankService extends Application {
 				modelInputs.MerchantName[0][i] = rs.getString(6);
 				modelInputs.MCC[0][i] = Integer.toString(rs.getInt(7));
 				modelInputs.Amount[0][i] = rs.getBigDecimal(8);
-				modelInputs.YearMonthDayTime[0][i] = rs.getTimestamp(9).getTime() * 1000000;
+				modelInputs.TimeDelta[0][i] = rs.getTimestamp(9).getTime();
 				i++;
 			}
 		}
@@ -148,10 +148,10 @@ public class BankService extends Application {
 			return null;
 		}
 
-		modelInputs.UseChip[0][i] = useChip;
+		modelInputs.UseChip[0][i] = useChip.ordinal();
 		modelInputs.Errors[0][i] = "None";
 		modelInputs.Amount[0][i] = amount;
-		modelInputs.YearMonthDayTime[0][i] = timestamp * 1000000;
+		modelInputs.TimeDelta[0][i] = timestamp;
 
 		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
@@ -167,6 +167,23 @@ public class BankService extends Application {
 			modelInputs.MerchantName[0][i] = rs.getString(4);
 			modelInputs.MCC[0][i] = Integer.toString(rs.getInt(5));
 		}
+		
+		
+		Calendar calendar = Calendar.getInstance();
+		long lastTime=modelInputs.TimeDelta[0][0];
+		for(int idx=0; idx<modelInputs.TimeDelta[0].length; idx++) {
+			long thisTime = modelInputs.TimeDelta[0][idx];
+			calendar.setTimeInMillis(thisTime);
+			modelInputs.Month[0][idx] = calendar.get(Calendar.MONTH);
+			modelInputs.Day[0][idx] = calendar.get(Calendar.DAY_OF_MONTH);
+			modelInputs.Hour[0][idx] = calendar.get(Calendar.HOUR_OF_DAY);
+			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
+	 
+			lastTime = modelInputs.TimeDelta[0][idx];
+			modelInputs.TimeDelta[0][idx] = (thisTime - lastTime) * 1000000;
+		}
+		
+		
 		return modelInputs;
 	}
 

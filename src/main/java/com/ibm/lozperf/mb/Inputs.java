@@ -13,7 +13,7 @@ public class Inputs {
 	@XmlElement
 	public BigDecimal[][] Amount;
 	@XmlElement
-	public CreditcardTransactionType[][] UseChip;
+	public long[][] UseChip;
 	@XmlElement
 	public String[][] MerchantName;
 	@XmlElement
@@ -27,7 +27,15 @@ public class Inputs {
 	@XmlElement
 	public String[][] Errors;
 	@XmlElement
-	public long[][] YearMonthDayTime;
+	public int[][] Minute;
+	@XmlElement
+	public int[][] Hour;
+	@XmlElement
+	public int[][] Day;
+	@XmlElement
+	public int[][] Month;
+	@XmlElement
+	public long[][] TimeDelta;
 	
 	public Inputs() {
 		
@@ -36,13 +44,18 @@ public class Inputs {
 	public Inputs(int timeSteps) {
 		this.timeSteps = timeSteps;
 		Amount = new BigDecimal[1][timeSteps];
-		UseChip = new CreditcardTransactionType[1][timeSteps];
+		UseChip = new long[1][timeSteps];
 		MerchantName = new String[1][timeSteps];
 		MerchantCity = new String[1][timeSteps];
 		MerchantState = new String[1][timeSteps];
 		Zip = new String[1][timeSteps];
 		MCC = new String[1][timeSteps];
 		Errors = new String[1][timeSteps];
-		YearMonthDayTime = new long[1][timeSteps];
+		Minute = new int[1][timeSteps];
+		Minute = new int[1][timeSteps];
+		Hour = new int[1][timeSteps];
+		Day = new int[1][timeSteps];
+		Month = new int[1][timeSteps];
+		TimeDelta = new long[1][timeSteps];
 	}
 }

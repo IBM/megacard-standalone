@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -19,7 +18,7 @@ import com.ibm.onnxmlir.OMTensorList;
 public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 
 	public final static Path STRING_MAP_DIR = Paths.get(System.getenv("STRING_MAP_DIR"));
-    public final static Map<String, Integer> mccMap = loadMap("MCC.csv");
+	public final static Map<String, Integer> mccMap = loadMap("MCC.csv");
 	public final static Map<String, Integer> cityMap = loadMap("MerchantCity.csv");
 	public final static Map<String, Integer> nameMap = loadMap("MerchantName.csv");
 	public final static Map<String, Integer> stateMap = loadMap("MerchantState.csv");
@@ -29,7 +28,8 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 		File f = STRING_MAP_DIR.resolve(Paths.get(name)).toFile();
 		System.out.println("loading " + f);
 		try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-			return br.lines().map(s -> s.split("\\|")).collect(Collectors.toMap(a -> a[0], a -> Integer.parseInt(a[1])));
+			return br.lines().map(s -> s.split("\\|"))
+					.collect(Collectors.toMap(a -> a[0], a -> Integer.parseInt(a[1])));
 		} catch (Exception e) {
 			System.err.println("Error loading " + f);
 			e.printStackTrace();
@@ -37,7 +37,7 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 		}
 	}
 
-	public static void map(String[] inp, Map<String, Integer> map, int[] target, int targetbase) {
+	public static void map(String[] inp, Map<String, Integer> map, long[] target, int targetbase) {
 		for (int j = 0; j < inp.length; j++) {
 			target[targetbase + j] = map.getOrDefault(inp[j], 0);
 		}
@@ -52,34 +52,27 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 			float[] amounts = new float[inpLenght];
 			int[] days = new int[inpLenght];
 			int[] hours = new int[inpLenght];
-			int[] mccs = new int[inpLenght];
-			int[] cities = new int[inpLenght];
-			int[] names = new int[inpLenght];
-			int[] states = new int[inpLenght];
+			long[] mccs = new long[inpLenght];
+			long[] cities = new long[inpLenght];
+			long[] names = new long[inpLenght];
+			long[] states = new long[inpLenght];
 			int[] minutes = new int[inpLenght];
 			int[] months = new int[inpLenght];
 			long[] timeDeltas = new long[inpLenght];
-			int[] useChip = new int[inpLenght];
-			int[] zips = new int[inpLenght];
-
-			Calendar calendar = Calendar.getInstance();
+			long[] useChip = new long[inpLenght];
+			long[] zips = new long[inpLenght];
 
 			for (int i = 0, base = 0; i < batch.size(); i++, base += nTS) {
 				Inputs inputs = batch.get(i).getInput();
-				long lastTime = 0;
-				for (int j = 0, idx = base; j < inputs.YearMonthDayTime[0].length; j++, idx++) {
-					long time = inputs.YearMonthDayTime[0][j];
-					timeDeltas[idx] = time - lastTime;
-					lastTime = time;
-					calendar.setTimeInMillis(time);
-					months[idx] = calendar.get(Calendar.MONTH);
-					days[idx] = calendar.get(Calendar.DAY_OF_MONTH);
-					hours[idx] = calendar.get(Calendar.HOUR_OF_DAY);
-					minutes[idx] = calendar.get(Calendar.MINUTE);
-					useChip[idx] = inputs.UseChip[0][j].ordinal();
+				for (int j = 0, idx = base; j < inputs.Amount[0].length; j++, idx++) {
 					amounts[idx] = inputs.Amount[0][j].floatValue();
 				}
-				timeDeltas[base] = 0; // lastTime is invalid for the first timeDelta
+				System.arraycopy(inputs.Day[0], 0, days, base, inputs.Day[0].length);
+				System.arraycopy(inputs.Hour[0], 0, hours, base, inputs.Hour[0].length);
+				System.arraycopy(inputs.Minute[0], 0, minutes, base, inputs.Minute[0].length);
+				System.arraycopy(inputs.Month[0], 0, months, base, inputs.Month[0].length);
+				System.arraycopy(inputs.TimeDelta[0], 0, timeDeltas, base, inputs.TimeDelta[0].length);
+				System.arraycopy(inputs.UseChip[0], 0, useChip, base, inputs.UseChip[0].length);
 				map(inputs.MCC[0], mccMap, mccs, base);
 				map(inputs.MerchantCity[0], cityMap, cities, base);
 				map(inputs.MerchantName[0], nameMap, names, base);
