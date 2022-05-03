@@ -5,5 +5,5 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class ModelOutputs {
-	@XmlElement public float[][][] outputs;
+	@XmlElement public float[][] outputs;
 }

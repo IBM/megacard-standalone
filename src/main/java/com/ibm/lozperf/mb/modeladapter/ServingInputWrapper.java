@@ -14,14 +14,14 @@ import com.ibm.lozperf.mb.ModelInputs;
 public class ServingInputWrapper {
 
 	@XmlElement
-	public ModelInputs modelInputs;
+	public ModelInputs inputs;
 	
 	public ServingInputWrapper() {
 		
 	}
 	
 	public ServingInputWrapper(ModelInputs modelInputs) {
-		this.modelInputs = modelInputs;
+		this.inputs = modelInputs;
 	}
 
 	@Override

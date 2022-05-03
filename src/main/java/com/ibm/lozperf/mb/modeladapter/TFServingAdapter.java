@@ -38,8 +38,8 @@ public class TFServingAdapter implements ModelAdapter {
 				return false;
 			}
 			// System.out.println(resp.readEntity(String.class));
-			float[][][] outputs = resp.readEntity(ModelOutputs.class).outputs;
-			float fraud = outputs[0][outputs[0].length - 1][0];
+			float[][] outputs = resp.readEntity(ModelOutputs.class).outputs;
+			float fraud = outputs[outputs[0].length - 1][0];
 			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
 			boolean isFraud = fraud > 0.5;
 			if (isFraud) {
