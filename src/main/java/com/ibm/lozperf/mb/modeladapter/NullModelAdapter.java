@@ -1,6 +1,6 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.ModelAdapter;
 
 public class NullModelAdapter implements ModelAdapter {
@@ -10,7 +10,7 @@ public class NullModelAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(Inputs inputs) {
+	public boolean checkFraud(ModelInputs modelInputs) {
 		return false;
 	}
 

@@ -114,7 +114,7 @@ public class BankService extends Application {
 		}
 	}
 
-	private Inputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
+	private ModelInputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
 		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
 				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID DESC LIMIT "
@@ -124,7 +124,7 @@ public class BankService extends Application {
 				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid "
 				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' " + "ORDER BY hd.time ASC";
 
-		Inputs modelInputs = new Inputs(model.numberTimesteps());
+		ModelInputs modelInputs = new ModelInputs(model.numberTimesteps());
 		
 		int i = 0;
 		try (PreparedStatement prep = con.prepareStatement(historyQueryStr)) {
@@ -189,14 +189,14 @@ public class BankService extends Application {
 
 	private boolean checkFraud(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
-		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
+		ModelInputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
 		if (in == null)
 			return false;
 		return model.checkFraud(in);
 	}
 
 	@Asynchronous
-	private Future<Boolean> asyncCallModel(Inputs in) {
+	private Future<Boolean> asyncCallModel(ModelInputs in) {
 		boolean fraud = model.checkFraud(in);
 		return new AsyncResult<>(fraud);
 	}
@@ -204,7 +204,7 @@ public class BankService extends Application {
 	private Future<Boolean> asyncCheckFraud(Connection con, CardAccount cardAccount, int merchantAccId,
 			BigDecimal amount, CreditcardTransactionType useChip, long timestamp)
 			throws SQLException, MegaBankException {
-		Inputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
+		ModelInputs in = getUserHistory(con, cardAccount, merchantAccId, amount, useChip, timestamp);
 		if (in == null)
 			return null;
 
@@ -225,7 +225,7 @@ public class BankService extends Application {
 		CreditcardTransactionType method = CreditcardTransactionType.getType(transaction.method);
 
 		CardAccount cardAccount;
-		Inputs in = null;
+		ModelInputs in = null;
 		try (Connection con = getConnection()) {
 			// con.setReadOnly(true);
 			if (!checkMerchantToken(con, transaction.merchantAcc, transaction.merchantToken)) {

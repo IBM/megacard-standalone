@@ -6,8 +6,8 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
-import com.ibm.lozperf.mb.Inputs;
-import com.ibm.lozperf.mb.LafalceOutputs;
+import com.ibm.lozperf.mb.ModelInputs;
+import com.ibm.lozperf.mb.ModelOutputs;
 import com.ibm.lozperf.mb.ModelAdapter;
 
 public class TFServingAdapter implements ModelAdapter {
@@ -27,8 +27,8 @@ public class TFServingAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(Inputs inputs) {
-		ServingInputWrapper tfInputs = new ServingInputWrapper(inputs);
+	public boolean checkFraud(ModelInputs modelInputs) {
+		ServingInputWrapper tfInputs = new ServingInputWrapper(modelInputs);
 		Entity<ServingInputWrapper> entity = Entity.json(tfInputs);
 		try (Response resp = modelServer.request().post(entity)) {
 			int httpStatus = resp.getStatus();
@@ -38,7 +38,7 @@ public class TFServingAdapter implements ModelAdapter {
 				return false;
 			}
 			// System.out.println(resp.readEntity(String.class));
-			float[][][] outputs = resp.readEntity(LafalceOutputs.class).outputs;
+			float[][][] outputs = resp.readEntity(ModelOutputs.class).outputs;
 			float fraud = outputs[0][outputs[0].length - 1][0];
 			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
 			boolean isFraud = fraud > 0.5;

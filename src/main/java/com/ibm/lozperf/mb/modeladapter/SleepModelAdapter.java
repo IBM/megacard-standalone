@@ -1,6 +1,6 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.ModelAdapter;
 
 public class SleepModelAdapter implements ModelAdapter {
@@ -12,7 +12,7 @@ public class SleepModelAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(Inputs inputs) {
+	public boolean checkFraud(ModelInputs modelInputs) {
 		try {
 			Thread.sleep(NULL_SLEEP);
 		} catch (InterruptedException e) {

@@ -8,20 +8,20 @@ import javax.xml.bind.Marshaller;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelInputs;
 
 @XmlRootElement
 public class ServingInputWrapper {
 
 	@XmlElement
-	public Inputs inputs;
+	public ModelInputs modelInputs;
 	
 	public ServingInputWrapper() {
 		
 	}
 	
-	public ServingInputWrapper(Inputs inputs) {
-		this.inputs = inputs;
+	public ServingInputWrapper(ModelInputs modelInputs) {
+		this.modelInputs = modelInputs;
 	}
 
 	@Override

@@ -2,7 +2,7 @@ package com.ibm.lozperf.mb.modeladapter;
 
 import java.util.List;
 
-import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.ModelAdapter;
 import com.ibm.lozperf.mb.batching.BatchCollector;
 import com.ibm.lozperf.mb.batching.Job;
@@ -70,24 +70,24 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 	private ThreadLocal<DlcInput> tlDlcInput = ThreadLocal.withInitial(() -> new DlcInput());
 
 	@Override
-	public boolean checkFraud(Inputs inputs) {
+	public boolean checkFraud(ModelInputs modelInputs) {
 		DlcInput dlcInputs = tlDlcInput.get();
 
-		for (int i = 0; i < inputs.Amount[0].length; i++)
-			dlcInputs.amounts[i] = inputs.Amount[0][i].floatValue();
+		for (int i = 0; i < modelInputs.Amount[0].length; i++)
+			dlcInputs.amounts[i] = modelInputs.Amount[0][i].floatValue();
 		
-		dlcInputs.minutes = inputs.Minute[0];
-		dlcInputs.hours = inputs.Hour[0];
-		dlcInputs.days = inputs.Day[0];
-		dlcInputs.months = inputs.Hour[0];	
-		dlcInputs.timeDeltas = inputs.TimeDelta[0];
-		dlcInputs.useChip = inputs.UseChip[0];
+		dlcInputs.minutes = modelInputs.Minute[0];
+		dlcInputs.hours = modelInputs.Hour[0];
+		dlcInputs.days = modelInputs.Day[0];
+		dlcInputs.months = modelInputs.Hour[0];	
+		dlcInputs.timeDeltas = modelInputs.TimeDelta[0];
+		dlcInputs.useChip = modelInputs.UseChip[0];
 		
-		DLCModelBatchingAdapter.map(inputs.MCC[0], DLCModelBatchingAdapter.mccMap, dlcInputs.mccs, 0);
-		DLCModelBatchingAdapter.map(inputs.MerchantCity[0], DLCModelBatchingAdapter.cityMap, dlcInputs.cities, 0);
-		DLCModelBatchingAdapter.map(inputs.MerchantName[0], DLCModelBatchingAdapter.nameMap, dlcInputs.names, 0);
-		DLCModelBatchingAdapter.map(inputs.MerchantState[0], DLCModelBatchingAdapter.stateMap, dlcInputs.states, 0);
-		DLCModelBatchingAdapter.map(inputs.Zip[0], DLCModelBatchingAdapter.zipMap, dlcInputs.zips, 0);
+		DLCModelBatchingAdapter.map(modelInputs.MCC[0], DLCModelBatchingAdapter.mccMap, dlcInputs.mccs, 0);
+		DLCModelBatchingAdapter.map(modelInputs.MerchantCity[0], DLCModelBatchingAdapter.cityMap, dlcInputs.cities, 0);
+		DLCModelBatchingAdapter.map(modelInputs.MerchantName[0], DLCModelBatchingAdapter.nameMap, dlcInputs.names, 0);
+		DLCModelBatchingAdapter.map(modelInputs.MerchantState[0], DLCModelBatchingAdapter.stateMap, dlcInputs.states, 0);
+		DLCModelBatchingAdapter.map(modelInputs.Zip[0], DLCModelBatchingAdapter.zipMap, dlcInputs.zips, 0);
 
 		return batchCollector.predict(dlcInputs);
 	}

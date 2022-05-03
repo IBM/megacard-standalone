@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.ibm.lozperf.mb.Inputs;
+import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.batching.Job;
 import com.ibm.onnxmlir.OMModel;
 import com.ibm.onnxmlir.OMTensor;
@@ -44,7 +44,7 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 	}
 
 	@Override
-	protected void batchPredict(List<Job<Inputs>> batch) {
+	protected void batchPredict(List<Job<ModelInputs>> batch) {
 		final int nTS = numberTimesteps();
 		OMTensorList tensorList;
 		{
@@ -63,21 +63,21 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 			long[] zips = new long[inpLenght];
 
 			for (int i = 0, base = 0; i < batch.size(); i++, base += nTS) {
-				Inputs inputs = batch.get(i).getInput();
-				for (int j = 0, idx = base; j < inputs.Amount[0].length; j++, idx++) {
-					amounts[idx] = inputs.Amount[0][j].floatValue();
+				ModelInputs modelInputs = batch.get(i).getInput();
+				for (int j = 0, idx = base; j < modelInputs.Amount[0].length; j++, idx++) {
+					amounts[idx] = modelInputs.Amount[0][j].floatValue();
 				}
-				System.arraycopy(inputs.Day[0], 0, days, base, inputs.Day[0].length);
-				System.arraycopy(inputs.Hour[0], 0, hours, base, inputs.Hour[0].length);
-				System.arraycopy(inputs.Minute[0], 0, minutes, base, inputs.Minute[0].length);
-				System.arraycopy(inputs.Month[0], 0, months, base, inputs.Month[0].length);
-				System.arraycopy(inputs.TimeDelta[0], 0, timeDeltas, base, inputs.TimeDelta[0].length);
-				System.arraycopy(inputs.UseChip[0], 0, useChip, base, inputs.UseChip[0].length);
-				map(inputs.MCC[0], mccMap, mccs, base);
-				map(inputs.MerchantCity[0], cityMap, cities, base);
-				map(inputs.MerchantName[0], nameMap, names, base);
-				map(inputs.MerchantState[0], stateMap, states, base);
-				map(inputs.Zip[0], zipMap, zips, base);
+				System.arraycopy(modelInputs.Day[0], 0, days, base, modelInputs.Day[0].length);
+				System.arraycopy(modelInputs.Hour[0], 0, hours, base, modelInputs.Hour[0].length);
+				System.arraycopy(modelInputs.Minute[0], 0, minutes, base, modelInputs.Minute[0].length);
+				System.arraycopy(modelInputs.Month[0], 0, months, base, modelInputs.Month[0].length);
+				System.arraycopy(modelInputs.TimeDelta[0], 0, timeDeltas, base, modelInputs.TimeDelta[0].length);
+				System.arraycopy(modelInputs.UseChip[0], 0, useChip, base, modelInputs.UseChip[0].length);
+				map(modelInputs.MCC[0], mccMap, mccs, base);
+				map(modelInputs.MerchantCity[0], cityMap, cities, base);
+				map(modelInputs.MerchantName[0], nameMap, names, base);
+				map(modelInputs.MerchantState[0], stateMap, states, base);
+				map(modelInputs.Zip[0], zipMap, zips, base);
 			}
 
 			long[] shape = { batch.size(), nTS };

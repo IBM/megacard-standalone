@@ -6,7 +6,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
-public class Inputs {
+public class ModelInputs {
 
 	public int timeSteps;
 	
@@ -37,11 +37,11 @@ public class Inputs {
 	@XmlElement
 	public long[][] TimeDelta;
 	
-	public Inputs() {
+	public ModelInputs() {
 		
 	}
 	
-	public Inputs(int timeSteps) {
+	public ModelInputs(int timeSteps) {
 		this.timeSteps = timeSteps;
 		Amount = new BigDecimal[1][timeSteps];
 		UseChip = new long[1][timeSteps];
