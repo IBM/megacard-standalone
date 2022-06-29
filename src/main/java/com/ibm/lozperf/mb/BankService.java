@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -70,6 +71,12 @@ public class BankService extends Application {
 
 	@PostConstruct
 	public void init() {
+		try (Connection con = ds.getConnection()) {
+			System.out.println("Isolation Level: " + con.getMetaData().getDefaultTransactionIsolation());
+		} catch (SQLException e1) {
+
+			e1.printStackTrace();
+		}
 		try {
 			model = (ModelAdapter) modelClass.newInstance();
 		} catch (IllegalAccessException | InstantiationException e) {
@@ -116,21 +123,29 @@ public class BankService extends Application {
 
 	private ModelInputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
-		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hw.amount, hw.time "
-				+ "FROM (SELECT txid, ccardid, method, errid FROM CARDHISTORY WHERE CCARDID=? ORDER BY TXID DESC LIMIT "
-				+ (model.numberTimesteps() - 1) + ") ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
-				+ "JOIN HISTORY hw ON ch.txid=hw.txid JOIN HISTORY hd ON hd.reftxid=hw.txid "
-				+ "JOIN customeraccs ca ON hd.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
-				+ "JOIN merchantacc ma ON ma.accid=hd.accid JOIN merchant m ON ma.merchantid=m.merchantid "
-				+ "WHERE hw.transtype='w' AND hd.transtype='d' AND c.customertype='m' " + "ORDER BY hd.time ASC";
+		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hd.amount, hd.time "
+				+ "FROM CARDHISTORY ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
+				+ "LEFT JOIN HISTORY hd ON hd.reftxid=ch.txid " + "LEFT JOIN customeraccs ca ON hd.accid=ca.accid "
+				+ "LEFT JOIN customer c ON ca.custid=c.custid " + "LEFT JOIN merchantacc ma ON ma.accid=hd.accid "
+				+ "LEFT JOIN merchant m ON ma.merchantid=m.merchantid " + "WHERE CCARDID=? ORDER BY ch.txid DESC LIMIT "
+				+ (model.numberTimesteps() - 1) + " WITH ur";
 
 		ModelInputs modelInputs = new ModelInputs(model.numberTimesteps());
-		
-		int i = 0;
+
+		int i;
+		int trys = 0;
 		try (PreparedStatement prep = con.prepareStatement(historyQueryStr)) {
 			prep.setInt(1, cardAccount.card);
 			ResultSet rs = prep.executeQuery();
+			i = model.numberTimesteps() - 1;
 			while (rs.next()) {
+				i--;
+				Timestamp ts = rs.getTimestamp(9);
+				if (ts == null) {
+					System.out.println("null: " + i);
+					break;
+				}
+				modelInputs.TimeDelta[0][i] = ts.getTime();
 				modelInputs.UseChip[0][i] = rs.getInt(1);
 				modelInputs.Errors[0][i] = rs.getString(2);
 				modelInputs.MerchantState[0][i] = rs.getString(3);
@@ -139,14 +154,19 @@ public class BankService extends Application {
 				modelInputs.MerchantName[0][i] = rs.getString(6);
 				modelInputs.MCC[0][i] = Integer.toString(rs.getInt(7));
 				modelInputs.Amount[0][i] = rs.getBigDecimal(8);
-				modelInputs.TimeDelta[0][i] = rs.getTimestamp(9).getTime();
-				i++;
 			}
+
 		}
-		if (i != model.numberTimesteps() - 1) {
-			System.out.println("Not Enough history to check Fraud");
+		// System.out.println(cardAccount.card);
+		if (i != 0) {
+			System.out.println("Not Enough history (" + i + ") to check Fraud for card " + cardAccount.card);
+			//System.out.println(Arrays.toString(modelInputs.Amount[0]));
+			//System.out.println(historyQueryStr);
+			// System.exit(0);
 			return null;
 		}
+
+		i = model.numberTimesteps() - 1;
 
 		modelInputs.UseChip[0][i] = useChip.ordinal();
 		modelInputs.Errors[0][i] = "None";
@@ -167,23 +187,21 @@ public class BankService extends Application {
 			modelInputs.MerchantName[0][i] = rs.getString(4);
 			modelInputs.MCC[0][i] = Integer.toString(rs.getInt(5));
 		}
-		
-		
+
 		Calendar calendar = Calendar.getInstance();
-		long lastTime=modelInputs.TimeDelta[0][0];
-		for(int idx=0; idx<modelInputs.TimeDelta[0].length; idx++) {
+		long lastTime = modelInputs.TimeDelta[0][0];
+		for (int idx = 0; idx < modelInputs.TimeDelta[0].length; idx++) {
 			long thisTime = modelInputs.TimeDelta[0][idx];
 			calendar.setTimeInMillis(thisTime);
 			modelInputs.Month[0][idx] = calendar.get(Calendar.MONTH);
 			modelInputs.Day[0][idx] = calendar.get(Calendar.DAY_OF_MONTH);
 			modelInputs.Hour[0][idx] = calendar.get(Calendar.HOUR_OF_DAY);
 			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
-	 
+
 			lastTime = modelInputs.TimeDelta[0][idx];
 			modelInputs.TimeDelta[0][idx] = (thisTime - lastTime) * 1000000;
 		}
-		
-		
+
 		return modelInputs;
 	}
 
@@ -257,6 +275,7 @@ public class BankService extends Application {
 			boolean success = transfer(con, cardAccount, transaction.merchantAcc, transaction.amount, method,
 					transaction.timestamp);
 			con.commit();
+//            boolean success = true;
 			return success ? "success" : "insufficant balance";
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -378,7 +397,7 @@ public class BankService extends Application {
 			long lastREFTX, long lastTX, long timestamp) throws MegaBankException {
 
 		final String insertHistoryTransferSQL = "INSERT INTO HISTORY (TIME, TXID, TRANSTYPE, AMOUNT, REFTXID, ACCID) "
-				+ " VALUES (?, ?, ?, ?, ?, ?) ";
+				+ " VALUES (?, ?, ?, ?, ?, ?)";
 
 		if (insertIntoHistory)
 			try (PreparedStatement prep = con.prepareStatement(insertHistoryTransferSQL)) {

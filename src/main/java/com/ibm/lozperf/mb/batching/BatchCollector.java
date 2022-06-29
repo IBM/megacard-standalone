@@ -52,7 +52,7 @@ public class BatchCollector<E> implements AutoCloseable {
 		return job.getResult();
 	}
 
-	public List<Job<E>> removeBatch() throws InterruptedException {
+	private List<Job<E>> removeBatch() throws InterruptedException {
 		ArrayList<Job<E>> newJobList = new ArrayList<>(jobList.size() * 2);
 		synchronized (lock) {
 			long wt = BATCH_TIMEOUT;

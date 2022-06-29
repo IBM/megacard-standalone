@@ -15,7 +15,7 @@ public class TFServingAdapter implements ModelAdapter {
 	private final static String TF_URL = System.getenv("TF_URL");
 
 	private Client httpClient;
-	private WebTarget modelServer;
+	protected WebTarget modelServer;
 
 	public TFServingAdapter() {
 		ClientBuilder cb = ClientBuilder.newBuilder();
@@ -26,8 +26,7 @@ public class TFServingAdapter implements ModelAdapter {
 		modelServer = httpClient.target(TF_URL);
 	}
 
-	@Override
-	public boolean checkFraud(ModelInputs modelInputs) {
+	protected float[][] doRequest(ModelInputs modelInputs) {
 		ServingInputWrapper tfInputs = new ServingInputWrapper(modelInputs);
 		Entity<ServingInputWrapper> entity = Entity.json(tfInputs);
 		try (Response resp = modelServer.request().post(entity)) {
@@ -35,19 +34,27 @@ public class TFServingAdapter implements ModelAdapter {
 			if (httpStatus != 200) {
 				System.err.println("Got " + httpStatus + " from TF Server\n" + resp.readEntity(String.class));
 				System.err.println(tfInputs.toString());
-				return false;
+				return null;
 			}
 			// System.out.println(resp.readEntity(String.class));
-			float[][] outputs = resp.readEntity(ModelOutputs.class).outputs;
-			float fraud = outputs[outputs[0].length - 1][0];
-			// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
-			boolean isFraud = fraud > 0.5;
-			if (isFraud) {
-				// System.out.println("FRAUD FRAUD FRAUD: " + fraud);
-			}
-
-			return isFraud;
+			return resp.readEntity(ModelOutputs.class).outputs;
 		}
+	}
+
+	@Override
+	public boolean checkFraud(ModelInputs modelInputs) {
+		float[][] outputs = doRequest(modelInputs);
+		if(outputs == null)
+			return false;
+		float fraud = outputs[outputs[0].length - 1][0];
+		// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
+		boolean isFraud = fraud > 0.5;
+		if (isFraud) {
+			// System.out.println("FRAUD FRAUD FRAUD: " + fraud);
+		}
+
+		return isFraud;
+
 	}
 
 	@Override
