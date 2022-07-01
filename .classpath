@@ -18,7 +18,7 @@
 			<attribute name="owner.project.facets" value="jst.web"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/ccfd_java_jan.jar"/>
+	<classpathentry kind="lib" path="models/dlc/ccf_new-noerror-7timedelta-512_aiu.jar"/>
 	<classpathentry kind="lib" path="/Liberty Runtime WLP 2000 12/shared/resources/affinity-3.20.0.jar"/>
 	<classpathentry kind="output" path="src/main/webapp/WEB-INF/classes"/>
 </classpath>
