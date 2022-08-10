@@ -2,6 +2,7 @@ package com.ibm.lozperf.mb;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -50,6 +51,8 @@ public class BankService extends Application {
 	private static boolean insertIntoHistory = true;
 	private static boolean autoCommit = false;
 	private static boolean allowDupLogon = false;
+	private boolean isDb2;
+	private boolean isPostgres;
 
 	private ModelAdapter model;
 
@@ -72,7 +75,14 @@ public class BankService extends Application {
 	@PostConstruct
 	public void init() {
 		try (Connection con = ds.getConnection()) {
-			System.out.println("Isolation Level: " + con.getMetaData().getDefaultTransactionIsolation());
+			DatabaseMetaData md = con.getMetaData();
+			System.out.println("Isolation Level: " + md.getDefaultTransactionIsolation());
+			String productName = md.getDatabaseProductName();
+			System.out.println("DBMS: " + productName);
+			isDb2 = productName.startsWith("DB2");
+			isPostgres = productName.startsWith("Postgre");
+			if (!isDb2 && !isPostgres)
+				System.err.println("could not identify DBMS");
 		} catch (SQLException e1) {
 
 			e1.printStackTrace();
@@ -123,17 +133,18 @@ public class BankService extends Application {
 
 	private ModelInputs getUserHistory(Connection con, CardAccount cardAccount, int merchantAccId, BigDecimal amount,
 			CreditcardTransactionType useChip, long timestamp) throws SQLException, MegaBankException {
-		final String historyQueryStr = "SELECT ch.METHOD, ISNULL(err.errorstr,'None'), ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc, hd.amount, hd.time "
+		String historyQueryStr = "SELECT ch.METHOD, COALESCE(err.errorstr,'None'), COALESCE(c.state,'None'), COALESCE(c.zipcode,'0'), COALESCE(c.city,'ONLINE'), m.merchant_name, m.mcc, hd.amount, hd.time "
 				+ "FROM CARDHISTORY ch " + "LEFT JOIN ERROR err ON ch.errid=err.errid "
 				+ "LEFT JOIN HISTORY hd ON hd.reftxid=ch.txid " + "LEFT JOIN customeraccs ca ON hd.accid=ca.accid "
 				+ "LEFT JOIN customer c ON ca.custid=c.custid " + "LEFT JOIN merchantacc ma ON ma.accid=hd.accid "
 				+ "LEFT JOIN merchant m ON ma.merchantid=m.merchantid " + "WHERE CCARDID=? ORDER BY ch.txid DESC LIMIT "
-				+ (model.numberTimesteps() - 1) + " WITH ur";
+				+ (model.numberTimesteps() - 1);
+		if (isDb2)
+			historyQueryStr += " WITH ur";
 
 		ModelInputs modelInputs = new ModelInputs(model.numberTimesteps());
 
 		int i;
-		int trys = 0;
 		try (PreparedStatement prep = con.prepareStatement(historyQueryStr)) {
 			prep.setInt(1, cardAccount.card);
 			ResultSet rs = prep.executeQuery();
@@ -160,8 +171,8 @@ public class BankService extends Application {
 		// System.out.println(cardAccount.card);
 		if (i != 0) {
 			System.out.println("Not Enough history (" + i + ") to check Fraud for card " + cardAccount.card);
-			//System.out.println(Arrays.toString(modelInputs.Amount[0]));
-			//System.out.println(historyQueryStr);
+			// System.out.println(Arrays.toString(modelInputs.Amount[0]));
+			// System.out.println(historyQueryStr);
 			// System.exit(0);
 			return null;
 		}
@@ -173,7 +184,7 @@ public class BankService extends Application {
 		modelInputs.Amount[0][i] = amount;
 		modelInputs.TimeDelta[0][i] = timestamp;
 
-		final String merchQueryStr = "SELECT  ISNULL(c.state,'None'), ISNULL(c.zipcode,'0'), ISNULL(c.city,'ONLINE'), m.merchant_name, m.mcc "
+		final String merchQueryStr = "SELECT  COALESCE(c.state,'None'), COALESCE(c.zipcode,'0'), COALESCE(c.city,'ONLINE'), m.merchant_name, m.mcc "
 				+ "FROM merchantacc ma  JOIN merchant m ON ma.merchantid=m.merchantid JOIN customeraccs ca ON ma.accid=ca.accid JOIN customer c ON ca.custid=c.custid "
 				+ "WHERE ma.accid=?";
 		try (PreparedStatement prep = con.prepareStatement(merchQueryStr)) {
@@ -326,13 +337,18 @@ public class BankService extends Application {
 		}
 	}
 
-	private static final String withdrawSQL = "select lasttxid from final table (UPDATE account set balance = balance - ?, lasttxid = lasttxid + 1 WHERE"
-			+ " accid = ? and balance >= ? ) ";
-	private static final String depositSQL = "select lasttxid from final table (UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ? )";
+	private String sqlReturnLasttxidWrap(String updateSQL) {
+		if (isDb2)
+			return "select lasttxid from final table (" + updateSQL + " )";
+		return updateSQL + " RETURNING lasttxid";
+	}
 
 	public boolean transfer(Connection con, CardAccount card, int accidTo, BigDecimal amount,
 			CreditcardTransactionType type, long timestamp) throws MegaBankException, SQLException {
-
+		final String withdrawSQL = sqlReturnLasttxidWrap(
+				"UPDATE account set balance = balance - ?, lasttxid = lasttxid + 1 WHERE  accid = ? and balance >= ?");
+		final String depositSQL = sqlReturnLasttxidWrap(
+				"UPDATE account set balance = balance + ?, lasttxid = lasttxid + 1 WHERE accid = ?");
 		try {
 			Savepoint startTransferSP = con.setSavepoint("START TRANSFER");
 
@@ -346,7 +362,7 @@ public class BankService extends Application {
 				if (!rs.next()) {
 					con.rollback(startTransferSP);
 					return false;
-					//throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
+					// throw new MegaBankException("MegaBankJDBC.transfer.withdraw: failed");
 				}
 				lastFromTX = rs.getLong(1);
 			}
@@ -429,39 +445,6 @@ public class BankService extends Application {
 		if (!autoCommit)
 			con.setAutoCommit(false);
 		return con;
-	}
-
-	private static DataSource retrieveDataSource() {
-		Map<String, String> envList = System.getenv();
-
-		// If these are not set, set them to the default
-		if (envList.containsKey("INSERT_INTO_HISTORY"))
-			insertIntoHistory = Boolean.parseBoolean(System.getenv("INSERT_INTO_HISTORY"));
-		if (envList.containsKey("AUTOCOMMIT"))
-			autoCommit = Boolean.parseBoolean(System.getenv("AUTOCOMMIT"));
-		if (envList.containsKey("ALLOW_DUP_LOGON"))
-			allowDupLogon = Boolean.parseBoolean(System.getenv("ALLOW_DUP_LOGON"));
-
-		String dsName = "UNKNOWN !! ";
-		if (envList.containsKey("JDBCNAME"))
-			dsName = System.getenv("JDBCNAME");
-
-		System.out.println("MegaBankJDBC: datasource name = " + dsName);
-		System.out.println("MegaBankJDBC: tx history table inserts = " + Boolean.toString(insertIntoHistory));
-		System.out.println("MegaBankJDBC: autoCommit = " + Boolean.toString(autoCommit));
-		System.out.println("MegaBankJDBC: allow Duplicate Logons = " + Boolean.toString(allowDupLogon));
-
-		DataSource ds;
-		try {
-			Context ctx = new InitialContext();
-			ds = (DataSource) ctx.lookup(dsName);
-			System.out.println("MegaBankJDBC: using datasource = " + dsName);
-
-		} catch (NamingException e) {
-			System.err.println("MegaBankJDBC: Error, cannot find datasource " + dsName);
-			throw new RuntimeException(e.getMessage());
-		}
-		return ds;
 	}
 
 	@GET
