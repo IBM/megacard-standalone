@@ -442,8 +442,7 @@ public class BankService extends Application {
 
 	protected Connection getConnection() throws SQLException {
 		Connection con = ds.getConnection();
-		if (!autoCommit)
-			con.setAutoCommit(false);
+		con.setAutoCommit(autoCommit);
 		return con;
 	}
 
