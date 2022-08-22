@@ -46,7 +46,7 @@ public class TFServingAdapter implements ModelAdapter {
 		float[][] outputs = doRequest(modelInputs);
 		if(outputs == null)
 			return false;
-		float fraud = outputs[outputs[0].length - 1][0];
+		float fraud = outputs[0][outputs[0].length - 1];
 		// System.out.println("Fraud Propability: " + frBoolean.parseBoolean(aud);
 		boolean isFraud = fraud > 0.5;
 		if (isFraud) {
