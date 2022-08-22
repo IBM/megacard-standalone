@@ -83,11 +83,11 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 		dlcInputs.timeDeltas = modelInputs.TimeDelta[0];
 		dlcInputs.useChip = modelInputs.UseChip[0];
 		
-		DLCModelBatchingAdapter.map(modelInputs.MCC[0], DLCModelBatchingAdapter.mccMap, dlcInputs.mccs, 0);
-		DLCModelBatchingAdapter.map(modelInputs.MerchantCity[0], DLCModelBatchingAdapter.cityMap, dlcInputs.cities, 0);
-		DLCModelBatchingAdapter.map(modelInputs.MerchantName[0], DLCModelBatchingAdapter.nameMap, dlcInputs.names, 0);
-		DLCModelBatchingAdapter.map(modelInputs.MerchantState[0], DLCModelBatchingAdapter.stateMap, dlcInputs.states, 0);
-		DLCModelBatchingAdapter.map(modelInputs.Zip[0], DLCModelBatchingAdapter.zipMap, dlcInputs.zips, 0);
+		DLCModelBatchingAdapter.mccMap.lookup(modelInputs.MCC[0], dlcInputs.mccs, 0);
+		DLCModelBatchingAdapter.cityMap.lookup(modelInputs.MerchantCity[0],dlcInputs.cities, 0);
+		DLCModelBatchingAdapter.nameMap.lookup(modelInputs.MerchantName[0], dlcInputs.names, 0);
+		DLCModelBatchingAdapter.stateMap.lookup(modelInputs.MerchantState[0], dlcInputs.states, 0);
+		DLCModelBatchingAdapter.zipMap.lookup(modelInputs.Zip[0], dlcInputs.zips, 0);
 
 		return batchCollector.predict(dlcInputs);
 	}

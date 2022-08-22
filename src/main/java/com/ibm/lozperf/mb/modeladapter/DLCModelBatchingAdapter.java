@@ -1,13 +1,9 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.batching.Job;
@@ -18,28 +14,21 @@ import com.ibm.onnxmlir.OMTensorList;
 public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 
 	public final static Path STRING_MAP_DIR = Paths.get(System.getenv("STRING_MAP_DIR"));
-	public final static Map<String, Integer> mccMap = loadMap("MCC.csv");
-	public final static Map<String, Integer> cityMap = loadMap("MerchantCity.csv");
-	public final static Map<String, Integer> nameMap = loadMap("MerchantName.csv");
-	public final static Map<String, Integer> stateMap = loadMap("MerchantState.csv");
-	public final static Map<String, Integer> zipMap = loadMap("Zip.csv");
+	public final static StringLookup mccMap = loadMap("MCC.csv");
+	public final static StringLookup cityMap = loadMap("MerchantCity.csv");
+	public final static StringLookup nameMap = loadMap("MerchantName.csv");
+	public final static StringLookup stateMap = loadMap("MerchantState.csv");
+	public final static StringLookup zipMap = loadMap("Zip.csv");
 
-	private static Map<String, Integer> loadMap(String name) {
+	private static StringLookup loadMap(String name) {
 		File f = STRING_MAP_DIR.resolve(Paths.get(name)).toFile();
 		System.out.println("loading " + f);
-		try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-			return br.lines().map(s -> s.split("\\|"))
-					.collect(Collectors.toMap(a -> a[0], a -> Integer.parseInt(a[1])));
+		try  {
+			return new StringLookup(f);
 		} catch (Exception e) {
 			System.err.println("Error loading " + f);
 			e.printStackTrace();
 			return null;
-		}
-	}
-
-	public static void map(String[] inp, Map<String, Integer> map, long[] target, int targetbase) {
-		for (int j = 0; j < inp.length; j++) {
-			target[targetbase + j] = map.getOrDefault(inp[j], 0);
 		}
 	}
 
@@ -73,11 +62,11 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 				System.arraycopy(modelInputs.Month[0], 0, months, base, modelInputs.Month[0].length);
 				System.arraycopy(modelInputs.TimeDelta[0], 0, timeDeltas, base, modelInputs.TimeDelta[0].length);
 				System.arraycopy(modelInputs.UseChip[0], 0, useChip, base, modelInputs.UseChip[0].length);
-				map(modelInputs.MCC[0], mccMap, mccs, base);
-				map(modelInputs.MerchantCity[0], cityMap, cities, base);
-				map(modelInputs.MerchantName[0], nameMap, names, base);
-				map(modelInputs.MerchantState[0], stateMap, states, base);
-				map(modelInputs.Zip[0], zipMap, zips, base);
+				mccMap.lookup(modelInputs.MCC[0], mccs, base);
+				cityMap.lookup(modelInputs.MerchantCity[0], cities, base);
+				nameMap.lookup(modelInputs.MerchantName[0], names, base);
+				stateMap.lookup(modelInputs.MerchantState[0], states, base);
+				zipMap.lookup(modelInputs.Zip[0], zips, base);
 			}
 
 			long[] shape = { batch.size(), nTS };
@@ -89,6 +78,7 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 		}
 		tensorList = OMModel.mainGraph(tensorList);
 		float[] results = tensorList.getOmtByIndex(0).getFloatData();
+		assert(results.length == batch.size());
 		for (int i = 0; i < batch.size(); i++) {
 			batch.get(i).setResult(results[i] > 0.5);
 		}
