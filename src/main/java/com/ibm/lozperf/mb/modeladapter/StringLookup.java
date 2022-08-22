@@ -28,7 +28,7 @@ public class StringLookup {
 
 	public void lookup(String[] inp, long[] target, int targetbase) {
 		for (int j = 0; j < inp.length; j++) {
-			target[targetbase + j] = map.getOrDefault(inp[j], 0);
+			target[targetbase + j] = map.getOrDefault(inp[j], unk);
 		}
 	}
 }
