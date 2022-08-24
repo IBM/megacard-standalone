@@ -208,9 +208,9 @@ public class BankService extends Application {
 			modelInputs.Day[0][idx] = calendar.get(Calendar.DAY_OF_MONTH);
 			modelInputs.Hour[0][idx] = calendar.get(Calendar.HOUR_OF_DAY);
 			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
-
-			lastTime = modelInputs.TimeDelta[0][idx];
+			
 			modelInputs.TimeDelta[0][idx] = (thisTime - lastTime) * 1000000;
+			lastTime = thisTime;
 		}
 
 		return modelInputs;
