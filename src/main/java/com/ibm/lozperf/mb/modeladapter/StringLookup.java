@@ -14,7 +14,6 @@ public class StringLookup {
 	private int unk;
 	
 	public StringLookup(File f) throws FileNotFoundException, IOException {
-		System.out.println("loading " + f);
 		try (BufferedReader br = new BufferedReader(new FileReader(f))) {
 			map = br.lines().map(s -> s.split("\\|"))
 					.collect(Collectors.toMap(a -> a[0], a -> Integer.parseInt(a[1])));
