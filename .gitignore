@@ -1,5 +1,7 @@
 /.apt_generated/
 
+**/.DS_Store
+
 # Compiled class file
 *.class
 
