@@ -6,11 +6,7 @@ import com.ibm.onnxmlir.OMModel;
 import com.ibm.onnxmlir.OMTensor;
 import com.ibm.onnxmlir.OMTensorList;
 
-import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.mccMap;
-import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.cityMap;
-import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.nameMap;
-import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.stateMap;
-import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.zipMap;
+import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.maps;
 
 public class DLCModelAdapter implements ModelAdapter, FraudProbability {
 
@@ -28,15 +24,15 @@ public class DLCModelAdapter implements ModelAdapter, FraudProbability {
 			amounts[j] = modelInputs.Amount[0][j].floatValue();
 		}
 		long[] mccs = new long[nTS];
-		mccMap.lookup(modelInputs.MCC[0], mccs, 0);
+		maps.mcc.lookup(modelInputs.MCC[0], mccs, 0);
 		long[] cities = new long[nTS];
-		cityMap.lookup(modelInputs.MerchantCity[0], cities, 0);
+		maps.city.lookup(modelInputs.MerchantCity[0], cities, 0);
 		long[] names = new long[nTS];
-		nameMap.lookup(modelInputs.MerchantName[0], names, 0);
+		maps.name.lookup(modelInputs.MerchantName[0], names, 0);
 		long[] states = new long[nTS];
-		stateMap.lookup(modelInputs.MerchantState[0], states, 0);
+		maps.state.lookup(modelInputs.MerchantState[0], states, 0);
 		long[] zips = new long[nTS];
-		zipMap.lookup(modelInputs.Zip[0], zips, 0);
+		maps.zip.lookup(modelInputs.Zip[0], zips, 0);
 		
 		long[] shape = { 1, numberTimesteps() };
 		OMTensorList tensorList = new OMTensorList(new OMTensor[] { 

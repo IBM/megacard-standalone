@@ -13,6 +13,7 @@ import java.util.Map;
 
 import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.batching.Job;
+import com.ibm.lozperf.mb.modeladapter.stringlookup.StringLookup;
 
 public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 

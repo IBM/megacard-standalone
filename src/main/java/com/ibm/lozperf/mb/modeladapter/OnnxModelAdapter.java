@@ -11,6 +11,8 @@ import java.util.Map;
 
 import com.ibm.lozperf.mb.ModelAdapter;
 import com.ibm.lozperf.mb.ModelInputs;
+import com.ibm.lozperf.mb.modeladapter.stringlookup.StringLookup;
+
 import ai.onnxruntime.OnnxTensor;
 import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtSession;

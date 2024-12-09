@@ -1,4 +1,4 @@
-package com.ibm.lozperf.mb.modeladapter;
+package com.ibm.lozperf.mb.modeladapter.stringlookup;
 
 import java.io.BufferedReader;
 import java.io.File;

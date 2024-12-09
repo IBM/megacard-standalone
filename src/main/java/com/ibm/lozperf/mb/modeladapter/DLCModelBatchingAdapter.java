@@ -1,36 +1,18 @@
 package com.ibm.lozperf.mb.modeladapter;
 
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.batching.Job;
+import com.ibm.lozperf.mb.modeladapter.stringlookup.ModelStringLookup;
 import com.ibm.onnxmlir.OMModel;
 import com.ibm.onnxmlir.OMTensor;
 import com.ibm.onnxmlir.OMTensorList;
 
 public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 
-	public final static Path STRING_MAP_DIR = Paths.get(System.getenv("STRING_MAP_DIR"));
-	public final static StringLookup mccMap = loadMap("MCC.csv");
-	public final static StringLookup cityMap = loadMap("MerchantCity.csv");
-	public final static StringLookup nameMap = loadMap("MerchantName.csv");
-	public final static StringLookup stateMap = loadMap("MerchantState.csv");
-	public final static StringLookup zipMap = loadMap("Zip.csv");
-
-	private static StringLookup loadMap(String name) {
-		File f = STRING_MAP_DIR.resolve(Paths.get(name)).toFile();
-		System.out.println("loading " + f);
-		try  {
-			return new StringLookup(f);
-		} catch (Exception e) {
-			System.err.println("Error loading " + f);
-			e.printStackTrace();
-			return null;
-		}
-	}
+	public final static String STRING_MAP_DIR = System.getenv("STRING_MAP_DIR");
+	public final static ModelStringLookup maps = new ModelStringLookup(STRING_MAP_DIR);
 
 	@Override
 	protected void batchPredict(List<Job<ModelInputs>> batch) {
@@ -62,11 +44,11 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 				System.arraycopy(modelInputs.Month[0], 0, months, base, modelInputs.Month[0].length);
 				System.arraycopy(modelInputs.TimeDelta[0], 0, timeDeltas, base, modelInputs.TimeDelta[0].length);
 				System.arraycopy(modelInputs.UseChip[0], 0, useChip, base, modelInputs.UseChip[0].length);
-				mccMap.lookup(modelInputs.MCC[0], mccs, base);
-				cityMap.lookup(modelInputs.MerchantCity[0], cities, base);
-				nameMap.lookup(modelInputs.MerchantName[0], names, base);
-				stateMap.lookup(modelInputs.MerchantState[0], states, base);
-				zipMap.lookup(modelInputs.Zip[0], zips, base);
+				maps.mcc.lookup(modelInputs.MCC[0], mccs, base);
+				maps.city.lookup(modelInputs.MerchantCity[0], cities, base);
+				maps.name.lookup(modelInputs.MerchantName[0], names, base);
+				maps.state.lookup(modelInputs.MerchantState[0], states, base);
+				maps.zip.lookup(modelInputs.Zip[0], zips, base);
 			}
 
 			long[] shape = { batch.size(), nTS };
