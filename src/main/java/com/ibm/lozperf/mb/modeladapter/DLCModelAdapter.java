@@ -12,7 +12,7 @@ import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.nameMap;
 import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.stateMap;
 import static com.ibm.lozperf.mb.modeladapter.DLCModelBatchingAdapter.zipMap;
 
-public class DLCModelAdapter implements ModelAdapter {
+public class DLCModelAdapter implements ModelAdapter, FraudProbability {
 
 	@Override
 	public void close() throws Exception {
@@ -21,7 +21,7 @@ public class DLCModelAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(ModelInputs modelInputs) {
+	public float checkFraudProbability(ModelInputs modelInputs) {
 		final int nTS = numberTimesteps();
 		float[] amounts = new float[nTS];
 		for (int j = 0; j < modelInputs.Amount[0].length; j++) {
@@ -55,7 +55,7 @@ public class DLCModelAdapter implements ModelAdapter {
 		tensorList = OMModel.mainGraph(tensorList);
 		float[] results = tensorList.getOmtByIndex(0).getFloatData();
 		assert(results.length == 1);
-		return results[0] > 0.5;
+		return results[0];
 	}
 
 }

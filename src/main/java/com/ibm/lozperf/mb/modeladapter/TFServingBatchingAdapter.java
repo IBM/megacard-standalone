@@ -7,7 +7,7 @@ import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.batching.BatchCollector;
 import com.ibm.lozperf.mb.batching.Job;
 
-public class TFServingBatchingAdapter extends TFServingAdapter {
+public class TFServingBatchingAdapter extends TFServingAdapter implements FraudProbability {
 
 	
 	private BatchCollector<ModelInputs> batchCollector = new BatchCollector<>((batch)-> batchPredict(batch));
@@ -19,7 +19,7 @@ public class TFServingBatchingAdapter extends TFServingAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(ModelInputs modelInputs) {
+	public float checkFraudProbability(ModelInputs modelInputs) {
 		return batchCollector.predict(modelInputs);
 	}
 	
@@ -61,7 +61,7 @@ public class TFServingBatchingAdapter extends TFServingAdapter {
 		float[][] result = doRequest(bmi);
 		
 		for(int i=0; i<batch.size(); i++) {
-			batch.get(i).setResult(result[i][result[i].length-1] > 0.5);
+			batch.get(i).setResult(result[i][result[i].length-1]);
 		}
 		
 	}
@@ -71,5 +71,4 @@ public class TFServingBatchingAdapter extends TFServingAdapter {
 		batchCollector.close();
 		super.close();
 	}
-
 }

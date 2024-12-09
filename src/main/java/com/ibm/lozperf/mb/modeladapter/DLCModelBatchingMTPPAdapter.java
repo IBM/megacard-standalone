@@ -10,7 +10,7 @@ import com.ibm.onnxmlir.OMModel;
 import com.ibm.onnxmlir.OMTensor;
 import com.ibm.onnxmlir.OMTensorList;
 
-public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
+public class DLCModelBatchingMTPPAdapter implements ModelAdapter, FraudProbability {
 
 	protected BatchCollector<DlcInput> batchCollector = new BatchCollector<>(this::batchPredict);
 
@@ -63,14 +63,14 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 
 		float[] results = tensorList.getOmtByIndex(0).getFloatData();
 		for (int i = 0; i < batch.size(); i++) {
-			batch.get(i).setResult(results[i] > 0.5);
+			batch.get(i).setResult(results[i]);
 		}
 	}
 
 	private ThreadLocal<DlcInput> tlDlcInput = ThreadLocal.withInitial(() -> new DlcInput());
 
 	@Override
-	public boolean checkFraud(ModelInputs modelInputs) {
+	public float checkFraudProbability(ModelInputs modelInputs) {
 		DlcInput dlcInputs = tlDlcInput.get();
 
 		for (int i = 0; i < modelInputs.Amount[0].length; i++)
@@ -106,5 +106,10 @@ public class DLCModelBatchingMTPPAdapter implements ModelAdapter {
 		long[] timeDeltas = new long[inpLenghtnTimesteps];
 		long[] useChip;
 		long[] zips = new long[inpLenghtnTimesteps];
+	}
+
+	@Override
+	public boolean checkFraud(ModelInputs modelInputs) {
+		return checkFraudProbability(modelInputs) > 0.5;
 	}
 }

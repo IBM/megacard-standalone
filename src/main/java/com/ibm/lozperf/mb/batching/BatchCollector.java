@@ -39,7 +39,7 @@ public class BatchCollector<E> implements AutoCloseable {
 		}
 	}
 
-	public boolean predict(E inputs) {
+	public float predict(E inputs) {
 		long insTime = System.currentTimeMillis();
 		Job<E> job = new Job<E>(inputs);
 		synchronized (lock) {
@@ -106,7 +106,7 @@ public class BatchCollector<E> implements AutoCloseable {
 					List<Job<E>> batch = removeBatch();
 					int bs = batch.size();
 					long start = System.currentTimeMillis();
-					;
+
 					boolean sample = false;
 					StackDumpTask stackDump = null;
 					if (PROFILE) {

@@ -7,7 +7,7 @@ import com.ibm.lozperf.mb.ModelAdapter;
 import com.ibm.lozperf.mb.batching.BatchCollector;
 import com.ibm.lozperf.mb.batching.Job;
 
-public abstract class AbstractBatchingAdapter implements ModelAdapter {
+public abstract class AbstractBatchingAdapter implements ModelAdapter, FraudProbability {
 
 	private BatchCollector<ModelInputs> batchCollector = new BatchCollector<>((batch)-> batchPredict(batch));
 
@@ -18,7 +18,7 @@ public abstract class AbstractBatchingAdapter implements ModelAdapter {
 	}
 
 	@Override
-	public boolean checkFraud(ModelInputs modelInputs) {
+	public float checkFraudProbability(ModelInputs modelInputs) {
 		return batchCollector.predict(modelInputs);
 	}
 

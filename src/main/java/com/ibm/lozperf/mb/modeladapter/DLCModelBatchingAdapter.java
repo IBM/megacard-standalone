@@ -80,7 +80,7 @@ public class DLCModelBatchingAdapter extends AbstractBatchingAdapter {
 		float[] results = tensorList.getOmtByIndex(0).getFloatData();
 		assert(results.length == batch.size());
 		for (int i = 0; i < batch.size(); i++) {
-			batch.get(i).setResult(results[i] > 0.5);
+			batch.get(i).setResult(results[i]);
 		}
 	}
 

@@ -17,7 +17,7 @@ public class NullBatchingAdapter extends AbstractBatchingAdapter{
 			e.printStackTrace();
 		}
 		for (int i = 0; i < batch.size(); i++) {
-			batch.get(i).setResult(false);
+			batch.get(i).setResult(0);
 		}
 	}
 

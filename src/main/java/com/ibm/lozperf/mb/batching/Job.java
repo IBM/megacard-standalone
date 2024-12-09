@@ -2,7 +2,7 @@ package com.ibm.lozperf.mb.batching;
 
 public class Job<E> {
 	private volatile E input;
-	private boolean result;
+	private float result;
 	private boolean finished = false;
 
 	public Job(E input) {
@@ -13,7 +13,7 @@ public class Job<E> {
 		return input;
 	}
 
-	public synchronized boolean getResult() {
+	public synchronized float getResult() {
 		while (!isFinished()) {
 			try {
 				wait();
@@ -24,7 +24,7 @@ public class Job<E> {
 		return result;
 	}
 
-	public synchronized void setResult(boolean result) {
+	public synchronized void setResult(float result) {
 		this.result = result;
 		this.finished = true;
 		notifyAll();
