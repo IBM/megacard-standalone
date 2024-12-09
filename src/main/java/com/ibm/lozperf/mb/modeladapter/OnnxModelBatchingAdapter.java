@@ -22,13 +22,45 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 	public final static StringLookup nameMap = loadMap("MerchantName.csv");
 	public final static StringLookup stateMap = loadMap("MerchantState.csv");
 	public final static StringLookup zipMap = loadMap("Zip.csv");
-	
 
-	    
+	private final Map<String, OrtSession> sessionCache = new HashMap<>();
+	private final OrtEnvironment env;
+
+	// Constructor: Initialize OrtEnvironment
+	public OnnxModelBatchingAdapter() throws OrtException {
+		env = OrtEnvironment.getEnvironment();
+	}
+
+	// Get cached OrtSession or create a new one if not found
+	public OrtSession getSession(String modelPath) throws OrtException {
+		// Check if the session for the given model path is already cached
+		if (sessionCache.containsKey(modelPath)) {
+			return sessionCache.get(modelPath);
+		} else {
+			// Create a new OrtSession if not found in the cache
+			OrtSession session = env.createSession(modelPath, new OrtSession.SessionOptions());
+			// Cache the newly created session
+			sessionCache.put(modelPath, session);
+			return session;
+		}
+	}
+
+	// Close all cached sessions (optional cleanup method)
+	public void close() {
+		for (OrtSession session : sessionCache.values()) {
+			try {
+				session.close();
+			} catch (OrtException e) {
+				e.printStackTrace();
+			}
+		}
+		sessionCache.clear();
+	}
+
 	private static StringLookup loadMap(String name) {
 		File f = STRING_MAP_DIR.resolve(Paths.get(name)).toFile();
 		System.out.println("loading " + f);
-		try  {
+		try {
 			return new StringLookup(f);
 		} catch (Exception e) {
 			System.err.println("Error loading " + f);
@@ -36,9 +68,7 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 			return null;
 		}
 	}
-	
 
-	
 	@Override
 	protected void batchPredict(List<Job<ModelInputs>> batch) {
 		final int nTS = numberTimesteps();
@@ -57,8 +87,8 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 		long[] timeDeltas = new long[inpLength];
 		long[] useChip = new long[inpLength];
 		long[] zips = new long[inpLength];
-		
-		//ModelInputs modelInputs = null;
+
+		// ModelInputs modelInputs = null;
 
 		// Process the batch
 		for (int i = 0, base = 0; i < batch.size(); i++, base += nTS) {
@@ -82,19 +112,16 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 
 		// Prepare tensors to input into the ONNX model
 		try (OrtEnvironment env = OrtEnvironment.getEnvironment()) {
-				    
-			
-			
-				
-			
 
-			try (OrtSession session = env.createSession("/opt/ibm/wlp/usr/shared/resources/onnx/ccf_new-noerror-7timedelta-1024_x86-inf.onnx", new OrtSession.SessionOptions())){
+			try {
+				OrtSession session = getSession(
+						"/opt/ibm/wlp/usr/shared/resources/onnx/ccf_new-noerror-7timedelta-1024_x86-inf.onnx");
 
 				// Define the shape for the tensors
 				long[] shape = { batch.size(), nTS };
 
 				// Create the tensors
-				OnnxTensor amountTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(amounts), shape);        		
+				OnnxTensor amountTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(amounts), shape);
 				OnnxTensor dayTensor = OnnxTensor.createTensor(env, IntBuffer.wrap(days), shape);
 				OnnxTensor hourTensor = OnnxTensor.createTensor(env, IntBuffer.wrap(hours), shape);
 				OnnxTensor mccTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(mccs), shape);
@@ -102,10 +129,10 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 				OnnxTensor nameTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(names), shape);
 				OnnxTensor stateTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(states), shape);
 				OnnxTensor zipTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(zips), shape);
-				OnnxTensor minuteTensor = OnnxTensor.createTensor(env, IntBuffer.wrap(minutes),shape);
+				OnnxTensor minuteTensor = OnnxTensor.createTensor(env, IntBuffer.wrap(minutes), shape);
 				OnnxTensor monthTensor = OnnxTensor.createTensor(env, IntBuffer.wrap(months), shape);
-				OnnxTensor timeDeltaTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(timeDeltas),shape);
-				OnnxTensor useChipTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(useChip),shape);
+				OnnxTensor timeDeltaTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(timeDeltas), shape);
+				OnnxTensor useChipTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(useChip), shape);
 
 				// Create an input map
 				Map<String, OnnxTensor> inputs = new HashMap<>();
@@ -123,27 +150,26 @@ public class OnnxModelBatchingAdapter extends AbstractBatchingAdapter {
 				inputs.put("UseChip", useChipTensor);
 
 				// Run the model
-				try (OrtSession.Result result = session.run(inputs)){
+				try (OrtSession.Result result = session.run(inputs)) {
 					// Process the output
 					float[][] results = (float[][]) result.get(0).getValue();
-					assert(results.length == batch.size());
+					assert (results.length == batch.size());
 
 					for (int i = 0; i < batch.size(); i++) {
 						batch.get(i).setResult(results[i][0] > 0.5);
 					}
-					
+
 				}
 
+			} catch (OrtException e) {
+				e.printStackTrace();
 			}
-				
-				
-			
-		} catch (OrtException e) {
+
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
+
 	}
-	
 
 	@Override
 	public int numberTimesteps() {
