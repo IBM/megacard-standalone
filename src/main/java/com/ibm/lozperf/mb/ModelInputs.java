@@ -36,6 +36,8 @@ public class ModelInputs {
 	public int[][] Month;
 	@XmlElement
 	public long[][] TimeDelta;
+	@XmlElement
+	public int[][] YearDiff;
 	
 	public ModelInputs() {
 		
@@ -57,5 +59,6 @@ public class ModelInputs {
 		Day = new int[1][timeSteps];
 		Month = new int[1][timeSteps];
 		TimeDelta = new long[1][timeSteps];
+		YearDiff = new int[1][timeSteps];
 	}
 }

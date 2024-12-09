@@ -201,6 +201,7 @@ public class BankService extends Application {
 
 		Calendar calendar = Calendar.getInstance();
 		long lastTime = modelInputs.TimeDelta[0][0];
+		int lastYear = 0;
 		for (int idx = 0; idx < modelInputs.TimeDelta[0].length; idx++) {
 			long thisTime = modelInputs.TimeDelta[0][idx];
 			calendar.setTimeInMillis(thisTime);
@@ -208,8 +209,13 @@ public class BankService extends Application {
 			modelInputs.Day[0][idx] = calendar.get(Calendar.DAY_OF_MONTH);
 			modelInputs.Hour[0][idx] = calendar.get(Calendar.HOUR_OF_DAY);
 			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
+			int thisYear = calendar.get(Calendar.YEAR);
+			if(idx > 0) {
+				modelInputs.YearDiff[0][idx] = thisYear - lastYear;
+				modelInputs.TimeDelta[0][idx] = (thisTime - lastTime) * 1000000;
+			}
 			
-			modelInputs.TimeDelta[0][idx] = (thisTime - lastTime) * 1000000;
+			lastYear = thisYear;
 			lastTime = thisTime;
 		}
 
