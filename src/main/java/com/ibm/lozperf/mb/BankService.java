@@ -207,6 +207,7 @@ public class BankService extends Application {
 			calendar.setTimeInMillis(thisTime);
 			modelInputs.Month[0][idx] = calendar.get(Calendar.MONTH);
 			modelInputs.Day[0][idx] = calendar.get(Calendar.DAY_OF_MONTH);
+			modelInputs.DayofWeek[0][idx] = calendar.get(Calendar.DAY_OF_WEEK);
 			modelInputs.Hour[0][idx] = calendar.get(Calendar.HOUR_OF_DAY);
 			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
 			int thisYear = calendar.get(Calendar.YEAR);

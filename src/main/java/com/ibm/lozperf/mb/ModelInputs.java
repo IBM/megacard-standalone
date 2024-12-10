@@ -31,6 +31,8 @@ public class ModelInputs {
 	@XmlElement
 	public int[][] Hour;
 	@XmlElement
+	public int[][] DayofWeek;
+	@XmlElement
 	public int[][] Day;
 	@XmlElement
 	public int[][] Month;
@@ -56,6 +58,7 @@ public class ModelInputs {
 		Minute = new int[1][timeSteps];
 		Minute = new int[1][timeSteps];
 		Hour = new int[1][timeSteps];
+		DayofWeek = new int[1][timeSteps];
 		Day = new int[1][timeSteps];
 		Month = new int[1][timeSteps];
 		TimeDelta = new long[1][timeSteps];
