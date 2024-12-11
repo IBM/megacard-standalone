@@ -2,43 +2,24 @@ package com.ibm.lozperf.mb;
 
 import java.math.BigDecimal;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
-@XmlRootElement
 public class ModelInputs {
 
 	public int timeSteps;
 	
-	@XmlElement
 	public BigDecimal[][] Amount;
-	@XmlElement
 	public long[][] UseChip;
-	@XmlElement
 	public String[][] MerchantName;
-	@XmlElement
 	public String[][] MerchantCity;
-	@XmlElement
 	public String[][] MerchantState;
-	@XmlElement
 	public String[][] Zip;
-	@XmlElement
 	public String[][] MCC;
-	@XmlElement
 	public String[][] Errors;
-	@XmlElement
 	public int[][] Minute;
-	@XmlElement
 	public int[][] Hour;
-	@XmlElement
 	public int[][] DayofWeek;
-	@XmlElement
 	public int[][] Day;
-	@XmlElement
 	public int[][] Month;
-	@XmlElement
 	public long[][] TimeDelta;
-	@XmlElement
 	public int[][] YearDiff;
 	
 	public ModelInputs() {
