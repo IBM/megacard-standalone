@@ -130,7 +130,7 @@ public abstract class TritonAdapter implements ModelAdapter, FraudProbability {
 		// Populate the outputs in the inference request
 		ModelInferRequest.InferRequestedOutputTensor.Builder output0 = ModelInferRequest.InferRequestedOutputTensor
 				.newBuilder();
-		output0.setName("logits");
+		output0.setName("sequential_1");
 
 		request.addOutputs(0, output0);
 
