@@ -8,9 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -22,9 +20,6 @@ import javax.ejb.Asynchronous;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.Singleton;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.sql.DataSource;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.Consumes;
@@ -50,7 +45,6 @@ public class BankService extends Application {
 	private DataSource ds;
 	private static boolean insertIntoHistory = true;
 	private static boolean autoCommit = false;
-	private static boolean allowDupLogon = false;
 	private boolean isDb2;
 	private boolean isPostgres;
 

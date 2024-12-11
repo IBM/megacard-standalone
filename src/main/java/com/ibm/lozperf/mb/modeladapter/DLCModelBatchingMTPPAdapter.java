@@ -3,14 +3,13 @@ package com.ibm.lozperf.mb.modeladapter;
 import java.util.List;
 
 import com.ibm.lozperf.mb.ModelInputs;
-import com.ibm.lozperf.mb.ModelAdapter;
 import com.ibm.lozperf.mb.batching.BatchCollector;
 import com.ibm.lozperf.mb.batching.Job;
 import com.ibm.onnxmlir.OMModel;
 import com.ibm.onnxmlir.OMTensor;
 import com.ibm.onnxmlir.OMTensorList;
 
-public class DLCModelBatchingMTPPAdapter implements ModelAdapter, FraudProbability {
+public class DLCModelBatchingMTPPAdapter implements FraudProbability {
 
 	protected BatchCollector<DlcInput> batchCollector = new BatchCollector<>(this::batchPredict);
 
