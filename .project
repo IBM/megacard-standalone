@@ -28,4 +28,11 @@
 		<nature>org.eclipse.jdt.core.javanature</nature>
 		<nature>org.eclipse.wst.jsdt.core.jsNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>triton</name>
+			<type>2</type>
+			<location>/home/jan/eclipse-workspace-neu/tritonclient/src/grpc_generated/java/library/target/generated-sources/protobuf/java</location>
+		</link>
+	</linkedResources>
 </projectDescription>
