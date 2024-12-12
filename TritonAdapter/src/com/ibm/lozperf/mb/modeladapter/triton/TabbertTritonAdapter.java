@@ -33,7 +33,7 @@ public class TabbertTritonAdapter extends TritonAdapter {
 			toGrpcInput(modelInputs.Minute[0], "Minute"),
 			//toGrpcInput(modelInputs.DayofWeek[0], "DayOfWeek"));
 			toGrpcInput(modelInputs.Amount[0], "Amount"),
-			toGrpcInputInt32(modelInputs.UseChip[0], "UseChip"),
+			toGrpcInput(modelInputs.UseChip[0], "UseChip"),
 			lookup(maps.name, modelInputs.MerchantName[0], "MerchantName"),
 			lookup(maps.city, modelInputs.MerchantCity[0], "MerchantCity"),
 			lookup(maps.state, modelInputs.MerchantState[0], "MerchantState"),

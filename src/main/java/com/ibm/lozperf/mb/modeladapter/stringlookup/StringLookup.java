@@ -18,7 +18,7 @@ public class StringLookup {
 			map = br.lines().map(s -> s.split("\\|"))
 					.collect(Collectors.toMap(a -> a[0], a -> Integer.parseInt(a[1])));
 		} 
-		unk = map.get("[UNK]");
+		unk = map.getOrDefault("[UNK]", -1);
 	}
 	
 	public int lookup(String str) {

@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import com.ibm.lozperf.mb.ModelAdapter;
 import com.ibm.lozperf.mb.ModelInputs;
 import com.ibm.lozperf.mb.modeladapter.FraudProbability;
 import com.ibm.lozperf.mb.modeladapter.stringlookup.StringLookup;
@@ -23,7 +22,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
 
-public abstract class TritonAdapter implements ModelAdapter, FraudProbability {
+public abstract class TritonAdapter implements FraudProbability {
 	
 
 	protected GRPCInferenceServiceBlockingStub grpc_stub;
@@ -103,14 +102,14 @@ public abstract class TritonAdapter implements ModelAdapter, FraudProbability {
 		InferInputTensor.Builder input = ModelInferRequest.InferInputTensor
 				.newBuilder();
 		input.setName(name);
-		input.setDatatype("INT32");
+		input.setDatatype("INT64");
 		input.addShape(1);
 		input.addShape(data.length);
 		
 		InferTensorContents.Builder content = InferTensorContents.newBuilder();
 		for (String s: data) {
 			int val = map.lookup(s);
-			content.addIntContents(val);
+			content.addInt64Contents(val);
 		}
 		input.setContents(content);
 		return input.build();
@@ -147,7 +146,9 @@ public abstract class TritonAdapter implements ModelAdapter, FraudProbability {
 //			last*=(int)d;
 //		}
 //		last--;
-		return output_data.get(0);
+		float res = output_data.get(0);
+		System.out.println(res);
+		return res;
 	}
 
 }
