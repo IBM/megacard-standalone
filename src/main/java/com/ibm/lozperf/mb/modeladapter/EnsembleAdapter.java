@@ -20,7 +20,7 @@ public class EnsembleAdapter implements ModelAdapter {
 			System.out.println("Model1 Class: " + model1Class);
 			
 			System.out.println("Ensemble Model2 Class Name: " + ENSEMBLE_MODEL2_CLASS);
-			model1Class = Class.forName(ENSEMBLE_MODEL2_CLASS);
+			model2Class = Class.forName(ENSEMBLE_MODEL2_CLASS);
 			System.out.println("Model2 Class: " + model2Class);
 		} catch (Throwable e) {
 			System.err.println("Error loading Model Adapter used by Ensemble:");
@@ -29,8 +29,8 @@ public class EnsembleAdapter implements ModelAdapter {
 		}
 	}
 	
-	private FraudProbability model1;
-	private ModelAdapter model2;
+	protected FraudProbability model1;
+	protected ModelAdapter model2;
 	
 	float uncertainInterval;
 	
@@ -58,13 +58,22 @@ public class EnsembleAdapter implements ModelAdapter {
 		model2.close();
 	}
 
+	// accepting the race condition...
+	protected volatile long totalCount = 0;
+	protected volatile long model2Count = 0;
+	
 	@Override
 	public boolean checkFraud(ModelInputs modelInputs) {
+		if(totalCount++ % 100000 == 0) {
+			System.out.println("ENSEMBLE: Total: " + totalCount + ", Model2: " + model2Count + ", Ratio: " + ((double) model2Count / totalCount) );
+		}
+
 		float res = model1.checkFraudProbability(modelInputs);
 		if( Math.abs(res-0.5) > uncertainInterval) {
 			return res > 0.5;
 		}
-	
+		model2Count++;
+		//System.out.println("Uncertain... using Model 2");
 		return model2.checkFraud(modelInputs);
 	}
 

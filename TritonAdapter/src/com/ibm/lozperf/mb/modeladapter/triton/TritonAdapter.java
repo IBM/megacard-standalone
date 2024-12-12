@@ -140,7 +140,7 @@ public abstract class TritonAdapter implements FraudProbability {
 		request.addOutputs(0, output0);
 
 		ModelInferResponse response = grpc_stub.modelInfer(request.build());
-		System.out.println(response);
+		//System.out.println(response);
 
 		// Get the response outputs
 		FloatBuffer output_data = response.getRawOutputContentsList().get(0).asReadOnlyByteBuffer().order(tritonByteOrder).asFloatBuffer();
@@ -153,8 +153,7 @@ public abstract class TritonAdapter implements FraudProbability {
 //		}
 //		last--;
 		float res = output_data.get(0);
-		System.out.println(res);
+		//System.out.println(res);
 		return res;
 	}
-
 }
