@@ -24,7 +24,9 @@ import io.grpc.ManagedChannelBuilder;
 
 public abstract class TritonAdapter implements FraudProbability {
 	
-
+	public final static String TRITON_HOST = System.getenv("TRITON_HOST");
+	public final static int TRITON_PORT = Integer.parseInt(System.getenv("TRITON_PORT"));
+	
 	protected GRPCInferenceServiceBlockingStub grpc_stub;
 	private ManagedChannel channel;
 	private String modelName;
@@ -129,7 +131,7 @@ public abstract class TritonAdapter implements FraudProbability {
 		// Populate the outputs in the inference request
 		ModelInferRequest.InferRequestedOutputTensor.Builder output0 = ModelInferRequest.InferRequestedOutputTensor
 				.newBuilder();
-		output0.setName("sequential_1");
+		output0.setName("sequential_2");
 
 		request.addOutputs(0, output0);
 

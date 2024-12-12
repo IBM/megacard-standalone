@@ -12,8 +12,6 @@ public class TabbertTritonAdapter extends TritonAdapter {
 	public final static String MODEL_NAME = "tabbert";
 	public final static String MODEL_VERSION = "";
 	
-	private final static String TRITON_HOST = System.getenv("TRITON_HOST");
-	private final static int TRITON_PORT = Integer.parseInt(System.getenv("TRITON_PORT"));
 	private final static String TABBERT_STRING_LOOKUP_DIR = System.getenv("TABBERT_STRING_LOOKUP_DIR");
 	
 	protected ModelStringLookup maps;
