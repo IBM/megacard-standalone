@@ -7,7 +7,7 @@ import com.ibm.lozperf.mb.ModelInputs;
 
 public class CompareModelAdapter implements ModelAdapter {
 
-	ModelAdapter[] modelAdapters = { new DLCModelBatchingAdapter(), new TFServingAdapter() };
+	ModelAdapter[] modelAdapters = { new DLCModelBatchingAdapter(), new DLCModelAdapter() };
 
 	public CompareModelAdapter() {
 	}
