@@ -26,13 +26,17 @@ public abstract class TritonAdapter implements FraudProbability {
 	
 	public final static String TRITON_HOST = System.getenv("TRITON_HOST");
 	public final static int TRITON_PORT = Integer.parseInt(System.getenv("TRITON_PORT"));
+	public final static String TRITON_ENDIAN = System.getenv("TRITON_ENDIAN");
 	
 	protected GRPCInferenceServiceBlockingStub grpc_stub;
 	private ManagedChannel channel;
 	private String modelName;
 	private String modelVersion;
 	
+	private ByteOrder tritonByteOrder;
+	
 	public TritonAdapter(String host, int port, String modelName, String modelVersion) {
+		tritonByteOrder = "BIG".equals(TRITON_ENDIAN) ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 		this.modelName = modelName;
 		this.modelVersion = modelVersion;
 		channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
@@ -139,7 +143,7 @@ public abstract class TritonAdapter implements FraudProbability {
 		System.out.println(response);
 
 		// Get the response outputs
-		FloatBuffer output_data = response.getRawOutputContentsList().get(0).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+		FloatBuffer output_data = response.getRawOutputContentsList().get(0).asReadOnlyByteBuffer().order(tritonByteOrder).asFloatBuffer();
 		
 //		InferOutputTensor output = response.getOutputs(0);
 //		var shape = output.getShapeList();
