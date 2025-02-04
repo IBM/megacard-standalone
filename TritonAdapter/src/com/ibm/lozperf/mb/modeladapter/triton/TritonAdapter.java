@@ -123,6 +123,8 @@ public abstract class TritonAdapter implements FraudProbability {
 	
 	abstract protected List<InferInputTensor> makeInputTensors(ModelInputs modelInputs);
 
+	private int errorCount = 0;
+	
 	@Override
 	public float checkFraudProbability(ModelInputs modelInputs) {
 		ModelInferRequest.Builder request = ModelInferRequest.newBuilder();
@@ -138,12 +140,23 @@ public abstract class TritonAdapter implements FraudProbability {
 		output0.setName("sequential_2");
 
 		request.addOutputs(0, output0);
-
-		ModelInferResponse response = grpc_stub.modelInfer(request.build());
-		//System.out.println(response);
-
-		// Get the response outputs
-		FloatBuffer output_data = response.getRawOutputContentsList().get(0).asReadOnlyByteBuffer().order(tritonByteOrder).asFloatBuffer();
+		
+		try {
+			ModelInferResponse response = grpc_stub.modelInfer(request.build());
+			//System.out.println(response);
+	
+			// Get the response outputs
+			FloatBuffer output_data = response.getRawOutputContentsList().get(0).asReadOnlyByteBuffer().order(tritonByteOrder).asFloatBuffer();
+			float res = output_data.get(0);
+			//System.out.println(res);
+			return res;
+		} catch(Exception e) {
+			errorCount++;
+			if(errorCount==1) {
+				System.out.println("Triton Error Input: " + modelInputs);
+			}
+			throw e;
+		}
 		
 //		InferOutputTensor output = response.getOutputs(0);
 //		var shape = output.getShapeList();
@@ -152,8 +165,5 @@ public abstract class TritonAdapter implements FraudProbability {
 //			last*=(int)d;
 //		}
 //		last--;
-		float res = output_data.get(0);
-		//System.out.println(res);
-		return res;
 	}
 }
