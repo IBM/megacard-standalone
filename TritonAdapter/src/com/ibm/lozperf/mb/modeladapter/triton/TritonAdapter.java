@@ -153,7 +153,14 @@ public abstract class TritonAdapter implements FraudProbability {
 		} catch(Exception e) {
 			errorCount++;
 			if(errorCount==1) {
-				System.out.println("Triton Error Input: " + modelInputs);
+				StringBuilder sb = new StringBuilder("Triton Error Input: {");
+				for(var inp: inputs) {
+					sb.append(inp.toString());
+					sb.append(", ");
+				}
+				sb.setLength(sb.length()-2);
+				sb.append(" }");
+				System.out.println(sb);
 			}
 			throw e;
 		}
