@@ -206,8 +206,8 @@ public class BankService extends Application {
 			modelInputs.Minute[0][idx] = calendar.get(Calendar.MINUTE);
 			int thisYear = calendar.get(Calendar.YEAR);
 			if(idx > 0) {
-				modelInputs.YearDiff[0][idx] = Math.min(thisYear - lastYear, 0);
-				modelInputs.TimeDelta[0][idx] = Math.min((thisTime - lastTime) * 1000000, 0);
+				modelInputs.YearDiff[0][idx] = Math.max(thisYear - lastYear, 0);
+				modelInputs.TimeDelta[0][idx] = Math.max((thisTime - lastTime) * 1000000, 0);
 			}
 			
 			lastYear = thisYear;
